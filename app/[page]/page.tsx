@@ -1,7 +1,6 @@
+import PortableText from "components/portable-text";
+import { getPage } from "lib/sanity";
 import type { Metadata } from "next";
-
-import Prose from "components/prose";
-import { getPage } from "lib/shopify";
 import { notFound } from "next/navigation";
 
 export async function generateMetadata(props: {
@@ -14,10 +13,10 @@ export async function generateMetadata(props: {
 
   return {
     title: page.seo?.title || page.title,
-    description: page.seo?.description || page.bodySummary,
+    description: page.seo?.description,
     openGraph: {
-      publishedTime: page.createdAt,
-      modifiedTime: page.updatedAt,
+      publishedTime: page._createdAt,
+      modifiedTime: page._updatedAt,
       type: "article",
     },
   };
@@ -34,7 +33,7 @@ export default async function Page(props: {
   return (
     <>
       <h1 className="mb-8 text-5xl font-bold">{page.title}</h1>
-      <Prose className="mb-8" html={page.body} />
+      <PortableText className="mb-8" value={page.body} />
       <p className="text-sm italic">
         {`This document was last updated on ${new Intl.DateTimeFormat(
           undefined,
@@ -43,7 +42,7 @@ export default async function Page(props: {
             month: "long",
             day: "numeric",
           },
-        ).format(new Date(page.updatedAt))}.`}
+        ).format(new Date(page._updatedAt))}.`}
       </p>
     </>
   );

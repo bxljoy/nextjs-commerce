@@ -25,7 +25,6 @@ import {
   getCollectionsQuery,
 } from "./queries/collection";
 import { getMenuQuery } from "./queries/menu";
-import { getPageQuery, getPagesQuery } from "./queries/page";
 import {
   getProductQuery,
   getProductRecommendationsQuery,
@@ -37,7 +36,6 @@ import {
   Connection,
   Image,
   Menu,
-  Page,
   Product,
   ShopifyAddToCartOperation,
   ShopifyCart,
@@ -48,8 +46,6 @@ import {
   ShopifyCollectionsOperation,
   ShopifyCreateCartOperation,
   ShopifyMenuOperation,
-  ShopifyPageOperation,
-  ShopifyPagesOperation,
   ShopifyProduct,
   ShopifyProductOperation,
   ShopifyProductRecommendationsOperation,
@@ -433,33 +429,6 @@ export async function getMenu(handle: string): Promise<Menu[]> {
         .replace("/pages", ""),
     })) || []
   );
-}
-
-export async function getPage(handle: string): Promise<Page | undefined> {
-  if (!endpoint) {
-    console.log(`Skipping getPage for '${handle}' - Shopify not configured`);
-    return undefined;
-  }
-
-  const res = await shopifyFetch<ShopifyPageOperation>({
-    query: getPageQuery,
-    variables: { handle },
-  });
-
-  return res.body.data.pageByHandle;
-}
-
-export async function getPages(): Promise<Page[]> {
-  if (!endpoint) {
-    console.log("Skipping getPages - Shopify not configured");
-    return [];
-  }
-
-  const res = await shopifyFetch<ShopifyPagesOperation>({
-    query: getPagesQuery,
-  });
-
-  return removeEdgesAndNodes(res.body.data.pages);
 }
 
 export async function getProduct(handle: string): Promise<Product | undefined> {

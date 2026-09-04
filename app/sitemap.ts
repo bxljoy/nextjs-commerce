@@ -1,4 +1,5 @@
-import { getCollections, getPages, getProducts } from "lib/shopify";
+import { getPages, getPosts } from "lib/sanity";
+import { getCollections, getProducts } from "lib/shopify";
 import { baseUrl, validateEnvironmentVariables } from "lib/utils";
 import { MetadataRoute } from "next";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   validateEnvironmentVariables();
 
-  const routesMap = [""].map((route) => ({
+  const routesMap = ["", "/blog"].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date().toISOString(),
   }));
@@ -31,10 +32,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
+  // Pages and posts now come from Sanity rather than Shopify.
   const pagesPromise = getPages().then((pages) =>
     pages.map((page) => ({
-      url: `${baseUrl}/${page.handle}`,
-      lastModified: page.updatedAt,
+      url: `${baseUrl}/${page.slug}`,
+      lastModified: page._updatedAt,
+    })),
+  );
+
+  const postsPromise = getPosts().then((posts) =>
+    posts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post._updatedAt,
     })),
   );
 
@@ -42,7 +51,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     fetchedRoutes = (
-      await Promise.all([collectionsPromise, productsPromise, pagesPromise])
+      await Promise.all([
+        collectionsPromise,
+        productsPromise,
+        pagesPromise,
+        postsPromise,
+      ])
     ).flat();
   } catch (error) {
     throw JSON.stringify(error, null, 2);
