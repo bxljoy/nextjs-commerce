@@ -24,7 +24,6 @@ import {
   getCollectionQuery,
   getCollectionsQuery,
 } from "./queries/collection";
-import { getMenuQuery } from "./queries/menu";
 import {
   getProductQuery,
   getProductRecommendationsQuery,
@@ -35,7 +34,6 @@ import {
   Collection,
   Connection,
   Image,
-  Menu,
   Product,
   ShopifyAddToCartOperation,
   ShopifyCart,
@@ -45,7 +43,6 @@ import {
   ShopifyCollectionProductsOperation,
   ShopifyCollectionsOperation,
   ShopifyCreateCartOperation,
-  ShopifyMenuOperation,
   ShopifyProduct,
   ShopifyProductOperation,
   ShopifyProductRecommendationsOperation,
@@ -401,34 +398,6 @@ export async function getCollections(): Promise<Collection[]> {
   ];
 
   return collections;
-}
-
-export async function getMenu(handle: string): Promise<Menu[]> {
-  "use cache";
-  cacheTag(TAGS.collections);
-  cacheLife("days");
-
-  if (!endpoint) {
-    console.log(`Skipping getMenu for '${handle}' - Shopify not configured`);
-    return [];
-  }
-
-  const res = await shopifyFetch<ShopifyMenuOperation>({
-    query: getMenuQuery,
-    variables: {
-      handle,
-    },
-  });
-
-  return (
-    res.body?.data?.menu?.items.map((item: { title: string; url: string }) => ({
-      title: item.title,
-      path: item.url
-        .replace(domain, "")
-        .replace("/collections", "/search")
-        .replace("/pages", ""),
-    })) || []
-  );
 }
 
 export async function getProduct(handle: string): Promise<Product | undefined> {

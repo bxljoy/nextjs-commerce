@@ -59,9 +59,7 @@ export default function HomePage() {
       <Suspense fallback={<CarouselSkeleton />}>
         <Carousel />
       </Suspense>
-      <Suspense fallback={null}>
-        <Footer />
-      </Suspense>
+      <Footer />
     </>
   );
 }

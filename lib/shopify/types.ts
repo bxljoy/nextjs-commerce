@@ -47,11 +47,6 @@ export type Image = {
   height: number;
 };
 
-export type Menu = {
-  title: string;
-  path: string;
-};
-
 export type Money = {
   amount: string;
   currencyCode: string;
@@ -205,20 +200,6 @@ export type ShopifyCollectionProductsOperation = {
 export type ShopifyCollectionsOperation = {
   data: {
     collections: Connection<ShopifyCollection>;
-  };
-};
-
-export type ShopifyMenuOperation = {
-  data: {
-    menu?: {
-      items: {
-        title: string;
-        url: string;
-      }[];
-    };
-  };
-  variables: {
-    handle: string;
   };
 };
 

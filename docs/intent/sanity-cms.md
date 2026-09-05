@@ -115,3 +115,39 @@ a Server Action. Draft mode stays out of scope; that part of the exclusion holds
 
 **Still out of scope:** draft mode, visual editing / stega, product references,
 embedded Studio.
+
+### 2026-09-05 — navigation is hardcoded, not CMS content
+
+**What changed:** header and footer menus move from Shopify into
+`lib/menus.ts`. `getMenu` and its query are deleted. Navigation does not go
+into Sanity either.
+
+**Why:** the header menu never existed in Shopify, so the navbar rendered
+empty, and both footer links pointed at `/policies/privacy-policy` and
+`/blogs/news` — routes this app has never served. Both 404'd.
+
+The instinct was to move menus to Sanity, matching pages and posts. That is
+the wrong boundary. Nav maps to routes, and routes are code: adding /blog
+meant writing a route file _and_ adding a link, in one change. Splitting them
+across two systems is precisely what let a menu name a path that does not
+exist. A hardcoded array cannot drift from the routes it names, and cannot
+render silently empty the way a missing CMS document does.
+
+The CMS-nav option was briefly argued for on the grounds that a modelled
+content type looks better in a portfolio. That is optimising for appearing
+sophisticated rather than being correct, and it was dropped.
+
+**Header and footer share one array on purpose.** The navbar is not sticky and
+/search renders 100 products, so repeating the links in the footer is about
+reachability. Split them when there is footer-only content to carry.
+
+**The footer's real problem is unsolved.** A footer's job is what does not earn
+header space — About, Privacy, Terms, Shipping, Returns. None of those exist,
+which is why it looked empty. That is content work, not code work, and no
+restyling will fix it.
+
+**Knock-on:** `Navbar` and `Footer` become synchronous, since menus were the
+only thing they awaited. Two `<Suspense>` boundaries that can no longer fire
+were removed with them — one inside `footer.tsx`, one around `<Footer />` in
+`app/page.tsx`. The boundaries around `ThreeItemGrid` and `Carousel` stay;
+those still fetch.
