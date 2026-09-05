@@ -1,6 +1,6 @@
 # Intent: Sanity.io as CMS
 
-**Status:** Confirmed, not yet implemented
+**Status:** Implemented and deployed. Revised 2026-09-05 — see Revisions.
 **Date:** 2026-09-03
 **Supersedes:** Shopify-backed pages (`getPage` / `getPages`)
 
@@ -22,17 +22,16 @@
 Deliberately excluded. Each was considered and declined, not overlooked.
 
 - Draft mode (`draftMode()` + read token)
-- Live preview (`defineLive` / `<SanityLive />`)
 - Visual editing / stega / Presentation tool
 - Product references — no joining Sanity documents to Shopify products
 - Embedded Studio at `/studio` in this repo
-- Sanity webhook revalidation (a likely follow-up, see Assumption 2)
 - HMAC verification of the Shopify webhook — the query-string secret stays
 
-The live-preview exclusion is the load-bearing one. Its cache-component pattern
-requires splitting every CMS-backed page and layout into cached and dynamic
-branches, which would tangle with this repo's existing `use cache` + PPR setup.
-Row 1 first; revisit once content exists.
+Draft mode is the load-bearing exclusion. It forces every CMS-backed page and
+layout to split into cached and dynamic branches, because published content
+should be cached and shared while a draft preview must be per-request and
+personal. That split is driven by drafts specifically — not by caching, and not
+by live revalidation of published content.
 
 ## Scope
 
@@ -63,11 +62,10 @@ Two exist at the time of writing:
 ## Assumptions
 
 1. **`/contact` migrates, `/data-sharing-opt-out` does not.** See above.
-2. **Sanity content is cached like Shopify content** — `"use cache"` + `cacheTag` +
-   `cacheLife`, mirroring `lib/shopify`. Consequence: a Sanity edit will not appear
-   until the cache turns over, the same way Shopify collections behaved before
-   webhooks were wired up. A Sanity webhook pointed at `/api/revalidate` is the
-   natural follow-up.
+2. ~~**Sanity content is cached like Shopify content**, with a webhook as the
+   natural follow-up.~~ **Superseded 2026-09-05.** The caching shape still holds,
+   but revalidation goes through `<SanityLive />` rather than a webhook. See
+   Revisions.
 3. **`lib/sanity` will not mirror `lib/shopify`'s shape.** No hand-rolled `fetch`.
    Sanity's official client handles the endpoint, CDN, and perspective, so the file
    will be substantially smaller. Same architectural role, different internals.
@@ -81,3 +79,39 @@ Two exist at the time of writing:
   cannot consume it.
 - Verify `next-sanity` and `@portabletext/react` APIs against live docs before
   implementing; this area moves quickly.
+
+## Revisions
+
+### 2026-09-05 — live revalidation via `SanityLive`, not a webhook
+
+**What changed:** `defineLive` / `<SanityLive />` moves from out-of-scope to
+in-scope. The Sanity webhook named in Assumption 2 is dropped.
+
+**Why:** the requirement sharpened from "content should eventually refresh" to
+"content should refresh immediately." A webhook gives fresh-on-next-reload; only
+the Live Content API updates an already-open page. The webhook was also rejected
+on its own terms — it means maintaining a second revalidation endpoint and
+configuring it in Sanity's admin.
+
+**The original reasoning was wrong.** This document excluded live preview because
+its "cache-component pattern requires splitting every CMS-backed page and layout
+into cached and dynamic branches." That conflated two separate things. The split
+comes from **draft mode**, which needs per-request rendering. Live revalidation of
+**published** content needs no such split — `sanityFetch` attaches Sanity's
+per-document `syncTags` via `cacheTag`, and `<SanityLive />` expires them through
+a Server Action. Draft mode stays out of scope; that part of the exclusion holds.
+
+**What it costs, honestly:**
+
+- CORS origins must be allowlisted per environment, including Vercel preview URLs.
+  `<SanityLive />` connects from the visitor's browser, unlike every other Sanity
+  call in this repo, which is server-side.
+- Concurrent listener quota scales with _traffic_, not with edits. Connections
+  drop at ~4 hours.
+- `lib/sanity/index.ts` accessors get rewritten onto `sanityFetch`.
+- `useCdn: false` in `lib/sanity/client.ts` should flip to `true`. Its comment
+  explains the choice in terms of the coarse-tag scheme, which no longer applies
+  once per-document `syncTags` drive invalidation.
+
+**Still out of scope:** draft mode, visual editing / stega, product references,
+embedded Studio.
