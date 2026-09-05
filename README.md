@@ -1,75 +1,112 @@
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fcommerce&project-name=commerce&repo-name=commerce&demo-title=Next.js%20Commerce&demo-url=https%3A%2F%2Fdemo.vercel.store&demo-image=https%3A%2F%2Fbigcommerce-demo-asset-ksvtgfvnd.vercel.app%2Fbigcommerce.png&products=%255B%257B%2522type%2522%253A%2522integration%2522%252C%2522protocol%2522%253A%2522other%2522%252C%2522productSlug%2522%253A%2522shopify%2522%252C%2522integrationSlug%2522%253A%2522shopify%2522%257D%255D&env=COMPANY_NAME,SITE_NAME)
+# Commerce
 
-# Next.js Commerce
+A server-rendered storefront on the Next.js App Router, backed by two services:
+**Shopify** for products, collections and the cart, **Sanity** for editorial
+content.
 
-A high-performance, server-rendered Next.js App Router ecommerce application.
+- Live: https://nextjs-commerce-sigma-hazel-95.vercel.app
+- Content editing: https://commerce-cms.sanity.studio
+- Schemas: https://github.com/bxljoy/-commerce-studio
 
-This template uses React Server Components, Server Actions, `Suspense`, `useOptimistic`, and more.
+Built on [vercel/commerce](https://github.com/vercel/commerce), diverged to add
+a CMS and retire Shopify's page support.
 
-<h3 id="v1-note"></h3>
+## Architecture
 
-> Note: Looking for Next.js Commerce v1? View the [code](https://github.com/vercel/commerce/tree/v1), [demo](https://commerce-v1.vercel.store), and [release notes](https://github.com/vercel/commerce/releases/tag/v1).
+Two data layers, deliberately kept apart. Every route reads from exactly one.
 
-## Providers
+| Route                             | Source  |                                                                |
+| --------------------------------- | ------- | -------------------------------------------------------------- |
+| `/`                               | Shopify | featured grid + carousel, from `hidden-homepage-*` collections |
+| `/product/[handle]`               | Shopify |                                                                |
+| `/search`, `/search/[collection]` | Shopify |                                                                |
+| `/[page]`                         | Sanity  | root catch-all, e.g. `/contact`                                |
+| `/blog`, `/blog/[slug]`           | Sanity  |                                                                |
 
-Vercel will only be actively maintaining a Shopify version [as outlined in our vision and strategy for Next.js Commerce](https://github.com/vercel/commerce/pull/966).
+```
+lib/shopify/    hand-rolled GraphQL client — the Storefront API is plain
+                GraphQL over HTTP, so there is no SDK to lean on
+lib/sanity/     GROQ via @sanity/client, plus defineLive for revalidation
+```
 
-Vercel is happy to partner and work with any commerce provider to help them get a similar template up and running and listed below. Alternative providers should be able to fork this repository and swap out the `lib/shopify` file with their own implementation while leaving the rest of the template mostly unchanged.
+Both cache with Next's `"use cache"` directive rather than the fetch Data
+Cache, because neither client routes through `fetch` in a way Next can see.
 
-- Shopify (this repository)
-- [BigCommerce](https://github.com/bigcommerce/nextjs-commerce) ([Demo](https://next-commerce-v2.vercel.app/))
-- [Ecwid by Lightspeed](https://github.com/Ecwid/ecwid-nextjs-commerce/) ([Demo](https://ecwid-nextjs-commerce.vercel.app/))
-- [Geins](https://github.com/geins-io/vercel-nextjs-commerce) ([Demo](https://geins-nextjs-commerce-starter.vercel.app/))
-- [Medusa](https://github.com/medusajs/vercel-commerce) ([Demo](https://medusa-nextjs-commerce.vercel.app/))
-- [Prodigy Commerce](https://github.com/prodigycommerce/nextjs-commerce) ([Demo](https://prodigy-nextjs-commerce.vercel.app/))
-- [Saleor](https://github.com/saleor/nextjs-commerce) ([Demo](https://saleor-commerce.vercel.app/))
-- [Shopware](https://github.com/shopwareLabs/vercel-commerce) ([Demo](https://shopware-vercel-commerce-react.vercel.app/))
-- [Swell](https://github.com/swellstores/verswell-commerce) ([Demo](https://verswell-commerce.vercel.app/))
-- [Umbraco](https://github.com/umbraco/Umbraco.VercelCommerce.Demo) ([Demo](https://vercel-commerce-demo.umbraco.com/))
-- [Wix](https://github.com/wix/headless-templates/tree/main/nextjs/commerce) ([Demo](https://wix-nextjs-commerce.vercel.app/))
-- [Fourthwall](https://github.com/FourthwallHQ/vercel-commerce) ([Demo](https://vercel-storefront.fourthwall.app/))
+**Invalidation differs by service:**
 
-> Note: Providers, if you are looking to use similar products for your demo, you can [download these assets](https://drive.google.com/file/d/1q_bKerjrwZgHwCw0ovfUMW6He9VtepO_/view?usp=sharing).
+- **Shopify** — webhooks POST to `/api/revalidate`, which checks a shared
+  secret and calls `revalidateTag` for `products` or `collections`.
+- **Sanity** — `<SanityLive />` in the root layout holds a connection to the
+  Live Content API. `sanityFetch` attaches Sanity's per-document `syncTags`,
+  and changes expire them through a Server Action. Edits reach open pages in
+  seconds with no webhook.
 
-## Integrations
+Rich text arrives as Portable Text (structured JSON), rendered by
+`components/portable-text.tsx`.
 
-Integrations enable upgraded or additional functionality for Next.js Commerce
+## Setup
 
-- [Orama](https://github.com/oramasearch/nextjs-commerce) ([Demo](https://vercel-commerce.oramasearch.com/))
+Copy `.env.example` to `.env` and fill it in.
 
-  - Upgrades search to include typeahead with dynamic re-rendering, vector-based similarity search, and JS-based configuration.
-  - Search runs entirely in the browser for smaller catalogs or on a CDN for larger.
+| Variable                          | Required |                                                       |
+| --------------------------------- | -------- | ----------------------------------------------------- |
+| `SHOPIFY_STORE_DOMAIN`            | yes      | `your-store.myshopify.com` — no protocol, no brackets |
+| `SHOPIFY_STOREFRONT_ACCESS_TOKEN` | yes      | **public** Storefront token (see below)               |
+| `SHOPIFY_API_VERSION`             | no       | defaults to the value pinned in `lib/constants.ts`    |
+| `SHOPIFY_REVALIDATION_SECRET`     | no       | any random string; only used by the webhook           |
+| `SANITY_PROJECT_ID`               | yes      | from sanity.io/manage                                 |
+| `SANITY_DATASET`                  | yes      | `production`                                          |
+| `SITE_NAME`, `COMPANY_NAME`       | no       | page titles and footer copyright                      |
 
-- [React Bricks](https://github.com/ReactBricks/nextjs-commerce-rb) ([Demo](https://nextjs-commerce.reactbricks.com/))
-  - Edit pages, product details, and footer content visually using [React Bricks](https://www.reactbricks.com) visual headless CMS.
+All are server-only — no `NEXT_PUBLIC_` prefix, because every query runs in a
+server component.
 
-## Running locally
+**The Storefront token trap.** `lib/shopify` sends the token as
+`X-Shopify-Storefront-Access-Token`, which is the **public** token header. The
+Headless channel also hands you a _private_ token; that one authenticates via
+`Shopify-Storefront-Private-Token` and will fail here. Take the public one.
 
-You will need to use the environment variables [defined in `.env.example`](.env.example) to run Next.js Commerce. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables) for this, but a `.env` file is all that is necessary.
+**Shopify content this expects.** The homepage reads two collections by
+hardcoded handle — `hidden-homepage-featured-items` (needs 3+ products) and
+`hidden-homepage-carousel` — plus menus `next-js-frontend-header-menu` and
+`next-js-frontend-footer-menu`. Without them those sections render empty rather
+than erroring.
 
-> Note: You should not commit your `.env` file or it will expose secrets that will allow others to control your Shopify store.
-
-1. Install Vercel CLI: `npm i -g vercel`
-2. Link local instance with Vercel and GitHub accounts (creates `.vercel` directory): `vercel link`
-3. Download your environment variables: `vercel env pull`
+## Local development
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev          # http://localhost:3000
+pnpm build        # production build
+pnpm test         # prettier --check
 ```
 
-Your app should now be running on [localhost:3000](http://localhost:3000/).
+Two things worth knowing:
 
-<details>
-  <summary>Expand if you work at Vercel and want to run locally and / or contribute</summary>
+- **`/sitemap.xml` returns 500 in `pnpm dev`.** A Turbopack RSC bug in this
+  Next canary, unrelated to app code — it reproduces with the CMS layer removed
+  entirely. Production is fine.
+- **Cached data survives a page refresh, not a server restart.** After changing
+  Shopify or Sanity content, restart the dev server rather than hard-reloading.
 
-1. Run `vc link`.
-1. Select the `Vercel Solutions` scope.
-1. Connect to the existing `commerce-shopify` project.
-1. Run `vc env pull` to get environment variables.
-1. Run `pnpm dev` to ensure everything is working correctly.
-</details>
+## Notable behaviour
 
-## Vercel, Next.js Commerce, and Shopify Integration Guide
+- Missing Sanity or Shopify config makes routes render empty rather than throw,
+  via guards in each data layer. Convenient locally, but it means a
+  misconfigured deploy fails silently.
+- `/[page]` returns HTTP 200 for a missing page instead of 404. It is a Partial
+  Prerender route, so the static shell flushes before `notFound()` runs.
+- The Shopify webhook endpoint always answers 200, including on a rejected
+  secret, so Shopify does not retry forever. A bad secret is only visible in the
+  server logs.
 
-You can use this comprehensive [integration guide](https://vercel.com/docs/integrations/ecommerce/shopify) with step-by-step instructions on how to configure Shopify as a headless CMS using Next.js Commerce as your headless Shopify storefront on Vercel.
+## Decisions
+
+`docs/intent/sanity-cms.md` records why the CMS is scoped the way it is,
+including what was deliberately left out and one piece of reasoning that turned
+out to be wrong.
+
+## License
+
+MIT, inherited from [vercel/commerce](https://github.com/vercel/commerce). See
+`license.md`.
