@@ -10,14 +10,18 @@ const dataset = process.env.SANITY_DATASET;
 /** Mirrors `lib/shopify`'s `endpoint` guard so routes degrade instead of throwing. */
 export const isSanityConfigured = Boolean(projectId && dataset);
 
-export const sanityClient: SanityClient | null = isSanityConfigured
-  ? createClient({
-      projectId: projectId!,
-      dataset: dataset!,
-      apiVersion: SANITY_API_VERSION,
-      // The `use cache` layer in ./index.ts already absorbs repeat traffic, so
-      // the CDN would only add a second staleness window on revalidation.
-      useCdn: false,
-      perspective: "published",
-    })
-  : null;
+/**
+ * Always non-null: `defineLive` needs a real client at module scope. When the
+ * env vars are missing the placeholder is never actually queried, because every
+ * accessor in ./index.ts returns early on `isSanityConfigured`.
+ */
+export const sanityClient: SanityClient = createClient({
+  projectId: projectId || "placeholder",
+  dataset: dataset || "production",
+  apiVersion: SANITY_API_VERSION,
+  // On, unlike the pre-SanityLive setup. Invalidation is now driven by the
+  // per-document `syncTags` that `sanityFetch` attaches, so the CDN's own
+  // staleness window no longer competes with our cache lifetime.
+  useCdn: true,
+  perspective: "published",
+});
