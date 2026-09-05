@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import FooterMenu from "components/layout/footer-menu";
 import LogoSquare from "components/logo-square";
-import { mainMenu } from "lib/menus";
+import { footerMenu } from "lib/menus";
 
 const { COMPANY_NAME, SITE_NAME } = process.env;
 
@@ -23,7 +23,7 @@ export default function Footer() {
             <span className="uppercase">{SITE_NAME}</span>
           </Link>
         </div>
-        <FooterMenu menu={mainMenu} />
+        <FooterMenu menu={footerMenu} />
       </div>
       <div className="border-t border-neutral-200 py-6 text-sm dark:border-neutral-700">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-1 px-4 md:flex-row md:gap-0 md:px-4 min-[1320px]:px-0">

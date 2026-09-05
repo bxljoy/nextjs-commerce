@@ -10,14 +10,21 @@ export type MenuItem = {
  * route file and a link, in the same change. Splitting them across two systems
  * is what let Shopify's menu point at /policies/privacy-policy, a path this app
  * has never served. A hardcoded array cannot drift from the routes it names.
- *
- * The header and footer share this deliberately. The navbar is not sticky and
- * /search is long, so repeating the links in the footer is about reachability,
- * not information. Split them once there is footer-only content to carry —
- * About, Privacy, Terms.
  */
-export const mainMenu: MenuItem[] = [
+
+/** Primary paths through the site: what someone is here to do. */
+export const headerMenu: MenuItem[] = [
   { title: "All Products", path: "/search" },
   { title: "Blog", path: "/blog" },
   { title: "Contact", path: "/contact" },
+];
+
+/**
+ * Secondary and legal pages — the things that do not earn header space.
+ * These were a duplicate of the header until the pages behind them existed.
+ */
+export const footerMenu: MenuItem[] = [
+  { title: "About", path: "/about" },
+  { title: "Privacy", path: "/privacy" },
+  { title: "Terms", path: "/terms" },
 ];

@@ -137,14 +137,16 @@ The CMS-nav option was briefly argued for on the grounds that a modelled
 content type looks better in a portfolio. That is optimising for appearing
 sophisticated rather than being correct, and it was dropped.
 
-**Header and footer share one array on purpose.** The navbar is not sticky and
-/search renders 100 products, so repeating the links in the footer is about
-reachability. Split them when there is footer-only content to carry.
+**Header and footer initially shared one array**, because the footer had no
+content of its own — a footer's job is what does not earn header space, and
+About, Privacy and Terms did not exist yet. Repeating the header was a stopgap
+for reachability, since the navbar is not sticky and /search renders 100
+products.
 
-**The footer's real problem is unsolved.** A footer's job is what does not earn
-header space — About, Privacy, Terms, Shipping, Returns. None of those exist,
-which is why it looked empty. That is content work, not code work, and no
-restyling will fix it.
+**Resolved the same day.** Those three pages were written in Sanity, so the
+arrays are now split: `headerMenu` carries the primary paths (All Products,
+Blog, Contact), `footerMenu` the secondary and legal pages (About, Privacy,
+Terms). No overlap. The footer had a content problem, not a code problem.
 
 **Knock-on:** `Navbar` and `Footer` become synchronous, since menus were the
 only thing they awaited. Two `<Suspense>` boundaries that can no longer fire

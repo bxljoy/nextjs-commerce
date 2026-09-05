@@ -1,6 +1,6 @@
 import CartModal from "components/cart/modal";
 import LogoSquare from "components/logo-square";
-import { mainMenu, type MenuItem } from "lib/menus";
+import { headerMenu, type MenuItem } from "lib/menus";
 import Link from "next/link";
 import { Suspense } from "react";
 import MobileMenu from "./mobile-menu";
@@ -9,7 +9,7 @@ import Search, { SearchSkeleton } from "./search";
 const { SITE_NAME } = process.env;
 
 export function Navbar() {
-  const menu = mainMenu;
+  const menu = headerMenu;
 
   return (
     <nav className="relative flex items-center justify-between p-4 lg:px-6">
