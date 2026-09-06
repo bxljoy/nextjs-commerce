@@ -42,7 +42,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-[24ch] text-sm">
-              A demonstration storefront built with Next.js, Shopify and Sanity.
+              Sample products, real architecture.
             </p>
             <a
               href={GITHUB_URL}
