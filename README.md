@@ -99,6 +99,12 @@ Two things worth knowing:
 - The Shopify webhook endpoint always answers 200, including on a rejected
   secret, so Shopify does not retry forever. A bad secret is only visible in the
   server logs.
+- **The two pinned API versions need opposite habits.** `SHOPIFY_API_VERSION`
+  expires: Shopify supports a version for about twelve months, then quietly
+  serves a different one than the one named, so it needs bumping periodically.
+  `SANITY_API_VERSION` does not expire — old versions keep working, and Sanity
+  signals deprecation through response headers long before removing anything.
+  Bump that one only when a query needs a newer GROQ feature.
 
 ## Decisions
 

@@ -53,6 +53,10 @@ export const DEFAULT_OPTION = "Default Title";
 // Pin the Storefront API version explicitly: Shopify silently "falls forward"
 // to the oldest supported version if this one is out of support, so an
 // unpinned/stale value means you don't know which schema you're talking to.
+//
+// This one does need periodic attention, unlike SANITY_API_VERSION in
+// lib/sanity/client.ts. Shopify supports each version for roughly 12 months
+// and then serves a different one than you named, without erroring.
 // Override per-environment with SHOPIFY_API_VERSION (server-only - this module
 // is also imported by client components, where the env ref inlines to
 // undefined and the default below applies).

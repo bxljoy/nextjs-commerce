@@ -2,6 +2,12 @@ import { createClient, type SanityClient } from "@sanity/client";
 
 // Pinned deliberately: Sanity's API is date-versioned, and an unpinned client
 // silently follows the latest schema behaviour. Bump only with a query review.
+//
+// Looking old is not a reason to bump it. Unlike SHOPIFY_API_VERSION in
+// lib/constants.ts, Sanity versions do not expire — old ones keep working, and
+// deprecation is announced via X-Sanity-Deprecated / X-Sanity-Warning response
+// headers well before a version is removed (removal then returns 410, loudly).
+// Bump when you need a GROQ feature added after this date, not on a calendar.
 export const SANITY_API_VERSION = "2024-01-01";
 
 const projectId = process.env.SANITY_PROJECT_ID;
