@@ -20,25 +20,25 @@ Specification: `docs/specs/sanity-webhook.md`
 ### Phase 1: Contract and tests
 
 - [x] Task 1: Create feature branch and record the approved spec and plan.
-- [ ] Task 2: Add failing webhook-policy tests and wire the built-in test runner.
+- [x] Task 2: Add failing webhook-policy tests and wire the built-in test runner.
 
 ### Checkpoint: Red
 
-- [ ] Focused tests fail because the webhook handler does not exist.
+- [x] Focused tests fail because the webhook handler does not exist.
 
 ### Phase 2: Implementation
 
-- [ ] Task 3: Implement the webhook policy until focused tests pass.
-- [ ] Task 4: Add explicit Sanity cache tags and the signed route; remove SanityLive.
+- [x] Task 3: Implement the webhook policy until focused tests pass.
+- [x] Task 4: Add explicit Sanity cache tags and the signed route; remove SanityLive.
 
 ### Checkpoint: Green
 
-- [ ] Focused webhook tests pass.
-- [ ] TypeScript accepts the route and cache wiring.
+- [x] Focused webhook tests pass.
+- [x] TypeScript accepts the route and cache wiring.
 
 ### Phase 3: Documentation and preview readiness
 
-- [ ] Task 5: Update `.env.example`, README, and `docs/intent/sanity-cms.md`.
+- [x] Task 5: Update `.env.example`, README, and `docs/intent/sanity-cms.md`.
 - [ ] Task 6: Run all verification gates and inspect the final diff.
 
 ### Checkpoint: Complete

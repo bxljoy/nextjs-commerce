@@ -1,6 +1,6 @@
 # Intent: Sanity.io as CMS
 
-**Status:** Implemented and deployed. Revised 2026-09-05 — see Revisions.
+**Status:** Implemented and deployed. Revised 2026-09-10 — see Revisions.
 **Date:** 2026-09-03
 **Supersedes:** Shopify-backed pages (`getPage` / `getPages`)
 
@@ -62,9 +62,9 @@ Two exist at the time of writing:
 ## Assumptions
 
 1. **`/contact` migrates, `/data-sharing-opt-out` does not.** See above.
-2. ~~**Sanity content is cached like Shopify content**, with a webhook as the
-   natural follow-up.~~ **Superseded 2026-09-05.** The caching shape still holds,
-   but revalidation goes through `<SanityLive />` rather than a webhook. See
+2. **Sanity content is cached like Shopify content, with a signed webhook for
+   revalidation.** The 2026-09-05 live-revalidation decision was superseded on
+   2026-09-10 after confirming that fresh-on-next-visit is sufficient. See
    Revisions.
 3. **`lib/sanity` will not mirror `lib/shopify`'s shape.** No hand-rolled `fetch`.
    Sanity's official client handles the endpoint, CDN, and perspective, so the file
@@ -81,6 +81,35 @@ Two exist at the time of writing:
   implementing; this area moves quickly.
 
 ## Revisions
+
+### 2026-09-10 — signed webhook replaces `SanityLive`
+
+**What changed:** `<SanityLive />`, `defineLive` and per-document `syncTags` are
+removed. Sanity now sends signed create/update/delete events to
+`/api/revalidate/sanity`; the endpoint invalidates a coarse `pages` or `posts`
+cache tag. The next request blocks for fresh published content.
+
+**Why:** the actual requirement is fresh content on the next visit or reload,
+not automatic updates to a page someone already has open. A browser-side live
+connection therefore paid ongoing connection and CORS costs for behavior the
+storefront did not need. Webhooks match the requirement and the existing
+Shopify invalidation shape without copying Shopify's weaker query-string secret:
+Sanity requests are verified with `next-sanity/webhook`.
+
+**Why coarse tags:** a single type tag covers detail pages, metadata, indexes,
+slug changes, unpublishes/deletes and sitemap reads. Per-document or path tags
+would be more selective but require reliable old and new slug projection and
+more invalidation branches, for no meaningful benefit at this content volume.
+
+**Freshness details:** `parseBody` waits for Content Lake eventual consistency,
+`revalidateTag(tag, { expire: 0 })` forces a blocking cache miss on the next
+request, and `useCdn: false` prevents that miss from being filled by a briefly
+stale Sanity CDN response.
+
+**Preview rollout:** Preview and production use separate webhook records and
+`SANITY_REVALIDATE_SECRET` values. The temporary preview webhook targets the
+stable Vercel branch URL and is removed after create/update/unpublish/delete
+checks pass. Drafts, visual editing and embedded Studio remain out of scope.
 
 ### 2026-09-05 — live revalidation via `SanityLive`, not a webhook
 

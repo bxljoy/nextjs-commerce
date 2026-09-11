@@ -26,7 +26,7 @@ Two data layers, deliberately kept apart. Every route reads from exactly one.
 ```
 lib/shopify/    hand-rolled GraphQL client — the Storefront API is plain
                 GraphQL over HTTP, so there is no SDK to lean on
-lib/sanity/     GROQ via @sanity/client, plus defineLive for revalidation
+lib/sanity/     GROQ via @sanity/client, with explicit cache tags
 ```
 
 Both cache with Next's `"use cache"` directive rather than the fetch Data
@@ -36,10 +36,10 @@ Cache, because neither client routes through `fetch` in a way Next can see.
 
 - **Shopify** — webhooks POST to `/api/revalidate`, which checks a shared
   secret and calls `revalidateTag` for `products` or `collections`.
-- **Sanity** — `<SanityLive />` in the root layout holds a connection to the
-  Live Content API. `sanityFetch` attaches Sanity's per-document `syncTags`,
-  and changes expire them through a Server Action. Edits reach open pages in
-  seconds with no webhook.
+- **Sanity** — signed webhooks POST to `/api/revalidate/sanity`. Page and post
+  queries carry separate coarse tags; a create, update, unpublish or delete
+  expires the matching tag so the next visit blocks for fresh published
+  content. Already-open pages do not update automatically.
 
 Rich text arrives as Portable Text (structured JSON), rendered by
 `components/portable-text.tsx`.
@@ -56,6 +56,7 @@ Copy `.env.example` to `.env` and fill it in.
 | `SHOPIFY_REVALIDATION_SECRET`     | no       | any random string; only used by the webhook           |
 | `SANITY_PROJECT_ID`               | yes      | from sanity.io/manage                                 |
 | `SANITY_DATASET`                  | yes      | `production`                                          |
+| `SANITY_REVALIDATE_SECRET`        | updates  | 32+ random characters; shared with the Sanity webhook |
 | `SITE_NAME`, `COMPANY_NAME`       | no       | page titles and footer copyright                      |
 
 All are server-only — no `NEXT_PUBLIC_` prefix, because every query runs in a
@@ -68,9 +69,8 @@ Headless channel also hands you a _private_ token; that one authenticates via
 
 **Shopify content this expects.** The homepage reads two collections by
 hardcoded handle — `hidden-homepage-featured-items` (needs 3+ products) and
-`hidden-homepage-carousel` — plus menus `next-js-frontend-header-menu` and
-`next-js-frontend-footer-menu`. Without them those sections render empty rather
-than erroring.
+`hidden-homepage-carousel`. Without them those sections render empty rather
+than erroring. Navigation is defined in `lib/menus.ts`, not Shopify.
 
 ## Local development
 
@@ -86,8 +86,30 @@ Two things worth knowing:
 - **`/sitemap.xml` returns 500 in `pnpm dev`.** A Turbopack RSC bug in this
   Next canary, unrelated to app code — it reproduces with the CMS layer removed
   entirely. Production is fine.
-- **Cached data survives a page refresh, not a server restart.** After changing
-  Shopify or Sanity content, restart the dev server rather than hard-reloading.
+- **Cached data survives a page refresh, not a server restart.** Shopify and
+  Sanity webhooks cannot reach `localhost` directly. Restart the dev server, or
+  expose `/api/revalidate/sanity` through a tunnel and send a signed webhook.
+
+## Vercel preview webhook test
+
+1. Push a feature branch and use its stable branch preview URL, not an
+   individual deployment URL.
+2. Set `SANITY_REVALIDATE_SECRET` in Vercel's **Preview** environment. Use a
+   different value from production.
+3. In Sanity project settings, create a temporary webhook:
+   - URL: `https://<branch-preview>/api/revalidate/sanity`
+   - Method/events: `POST`; Create, Update, Delete
+   - Filter: `_type in ["page", "post"]`
+   - Projection: `{_type}`
+   - Drafts/versions: disabled
+   - Secret: the Preview environment value
+4. If Deployment Protection is enabled, configure an exception or bypass that
+   allows Sanity to reach only this endpoint.
+5. Verify page/post creation, editing, unpublishing/deletion, indexes and
+   `/sitemap.xml`, then disable the temporary webhook.
+
+Production keeps its existing behavior until this branch is merged and a
+production webhook and secret are configured.
 
 ## Notable behaviour
 
@@ -97,8 +119,8 @@ Two things worth knowing:
 - `/[page]` returns HTTP 200 for a missing page instead of 404. It is a Partial
   Prerender route, so the static shell flushes before `notFound()` runs.
 - The Shopify webhook endpoint always answers 200, including on a rejected
-  secret, so Shopify does not retry forever. A bad secret is only visible in the
-  server logs.
+  secret, so Shopify does not retry forever. The Sanity endpoint instead uses
+  real 400/401/500 statuses and Sanity's signed request verification.
 - **The two pinned API versions need opposite habits.** `SHOPIFY_API_VERSION`
   expires: Shopify supports a version for about twelve months, then quietly
   serves a different one than the one named, so it needs bumping periodically.
