@@ -17,9 +17,9 @@ const dataset = process.env.SANITY_DATASET;
 export const isSanityConfigured = Boolean(projectId && dataset);
 
 /**
- * Always non-null: `defineLive` needs a real client at module scope. When the
- * env vars are missing the placeholder is never actually queried, because every
- * accessor in ./index.ts returns early on `isSanityConfigured`.
+ * Always non-null so accessors can import one client without conditional
+ * construction. When env vars are missing, the placeholder is never queried
+ * because every accessor in ./index.ts returns early.
  */
 export const sanityClient: SanityClient = createClient({
   projectId: projectId || "placeholder",

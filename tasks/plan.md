@@ -39,14 +39,14 @@ Specification: `docs/specs/sanity-webhook.md`
 ### Phase 3: Documentation and preview readiness
 
 - [x] Task 5: Update `.env.example`, README, and `docs/intent/sanity-cms.md`.
-- [ ] Task 6: Run all verification gates and inspect the final diff.
+- [x] Task 6: Run all verification gates and inspect the final diff.
 
 ### Checkpoint: Complete
 
-- [ ] Formatting, unit tests, type checking, and production build pass.
-- [ ] Invalid-signature smoke test returns 401 without invalidation.
-- [ ] Worktree contains only intended feature changes and no secret.
-- [ ] Branch is ready to push for a Vercel Preview deployment.
+- [x] Formatting, unit tests, type checking, and production build pass.
+- [x] Invalid-signature smoke test returns 401 without invalidation.
+- [x] Worktree contains only intended feature changes and no secret.
+- [x] Branch is ready to push for a Vercel Preview deployment.
 
 ## Risks and mitigations
 
@@ -58,6 +58,7 @@ Specification: `docs/specs/sanity-webhook.md`
 | Preview webhook reaches a protected deployment | Medium | Document branch URL and Deployment Protection requirement          |
 | At-least-once duplicate delivery               | Low    | Cache-tag invalidation is idempotent                               |
 | Change accidentally affects Shopify            | High   | Separate route and leave Shopify files untouched                   |
+| Pre-existing dependency advisories             | High   | Remediate in a separate dependency-focused branch and PR           |
 
 ## Rollout
 

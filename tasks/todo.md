@@ -11,8 +11,9 @@
 - [x] Add the webhook secret to `.env.example`.
 - [x] Update README setup/architecture/preview instructions.
 - [x] Supersede the live-revalidation decision in `docs/intent/sanity-cms.md`.
-- [ ] Run `pnpm test`.
-- [ ] Run `pnpm exec tsc --noEmit`.
-- [ ] Run `pnpm build`.
-- [ ] Smoke-test rejection of an invalid signature.
-- [ ] Review the final diff for scope and secrets.
+- [x] Run `pnpm test`.
+- [x] Run `pnpm exec tsc --noEmit`.
+- [x] Run `pnpm build`.
+- [x] Smoke-test rejection of an invalid signature.
+- [x] Review the final diff for scope and secrets.
+- [x] Record pre-existing dependency advisories for separate remediation.
