@@ -25,9 +25,9 @@ export const sanityClient: SanityClient = createClient({
   projectId: projectId || "placeholder",
   dataset: dataset || "production",
   apiVersion: SANITY_API_VERSION,
-  // On, unlike the pre-SanityLive setup. Invalidation is now driven by the
-  // per-document `syncTags` that `sanityFetch` attaches, so the CDN's own
-  // staleness window no longer competes with our cache lifetime.
-  useCdn: true,
+  // Webhook invalidation promises fresh content on the next request. Bypass
+  // the CDN so a newly expired Next cache cannot be repopulated by a briefly
+  // stale CDN response while Sanity's edge cache catches up.
+  useCdn: false,
   perspective: "published",
 });

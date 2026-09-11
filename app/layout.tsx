@@ -2,7 +2,6 @@ import { CartProvider } from "components/cart/cart-context";
 import { Navbar } from "components/layout/navbar";
 import { WelcomeToast } from "components/welcome-toast";
 import { GeistSans } from "geist/font/sans";
-import { SanityLive } from "lib/sanity/live";
 import { getCart } from "lib/shopify";
 import { baseUrl } from "lib/utils";
 import type { Metadata } from "next";
@@ -41,9 +40,6 @@ export default async function RootLayout({
             {children}
             <Toaster closeButton />
             <WelcomeToast />
-            {/* Streams Sanity content changes and expires their cache tags,
-                so CMS edits reach open pages without a reload. */}
-            <SanityLive />
           </main>
         </CartProvider>
       </body>
