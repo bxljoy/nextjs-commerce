@@ -1,6 +1,5 @@
 "use server";
 
-import { TAGS } from "lib/constants";
 import {
   addToCart,
   createCart,
@@ -8,7 +7,7 @@ import {
   removeFromCart,
   updateCart,
 } from "lib/shopify";
-import { updateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -22,7 +21,7 @@ export async function addItem(
 
   try {
     await addToCart([{ merchandiseId: selectedVariantId, quantity: 1 }]);
-    updateTag(TAGS.cart);
+    revalidatePath("/", "layout");
   } catch (e) {
     return "Error adding item to cart";
   }
@@ -42,7 +41,7 @@ export async function removeItem(prevState: any, merchandiseId: string) {
 
     if (lineItem && lineItem.id) {
       await removeFromCart([lineItem.id]);
-      updateTag(TAGS.cart);
+      revalidatePath("/", "layout");
     } else {
       return "Item not found in cart";
     }
@@ -88,7 +87,10 @@ export async function updateItemQuantity(
       await addToCart([{ merchandiseId, quantity }]);
     }
 
-    updateTag(TAGS.cart);
+    // Stable Next.js 15 has no updateTag. Refresh the root layout so its
+    // uncached cart read becomes the canonical state after the optimistic UI.
+    // Source: https://nextjs.org/docs/15/app/api-reference/functions/revalidatePath
+    revalidatePath("/", "layout");
   } catch (e) {
     console.error(e);
     return "Error updating item quantity";

@@ -7,9 +7,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     request,
     secret: process.env.SANITY_REVALIDATE_SECRET,
     parseBody: parseSanityWebhook,
-    // A webhook runs in a Route Handler, where updateTag is unavailable.
-    // expire: 0 makes the next visitor block for fresh content.
-    revalidateTag: (tag) => revalidateTag(tag, { expire: 0 }),
+    // In Next.js 15, revalidateTag marks this data stale. The next visitor
+    // performs the fresh read; the webhook does not eagerly refetch it.
+    revalidateTag,
     reportError: (message) => console.error(message),
   });
 }
