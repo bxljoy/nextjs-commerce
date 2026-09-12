@@ -30,7 +30,8 @@
       `main` with 23 (12 high, 11 moderate); no new advisory was introduced.
 - [x] Scan for secrets, residual experimental APIs, and unexpected dependency
       changes.
-- [ ] Complete a focused independent re-review of the final diff.
+- [x] Complete a focused independent re-review with no Critical or Required
+      findings.
 
 ## Vercel Preview acceptance
 

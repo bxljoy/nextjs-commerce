@@ -1,7 +1,7 @@
 # Plan: Stable Next.js 15 storefront caching
 
-Status: local implementation complete; final local verification, Vercel Preview,
-and browser checks remain.
+Status: local implementation, verification, and independent review complete;
+Vercel Preview and browser checks remain.
 
 Spec: `docs/specs/next15-stable-caching.md`.
 Branch: `learning/next15-stable-caching`.

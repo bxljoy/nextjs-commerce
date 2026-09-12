@@ -143,10 +143,13 @@ Local automated checks cover:
 
 - Real Sanity signature generation and verification against raw body text.
 - Missing/invalid signatures, malformed payloads, and unsupported types.
-- Page/post tag selection and the three-second consistency-wait contract.
+- Page/post tag selection.
 - Sanity cache namespace, query identity, slug arguments, TTL, and tags.
 - Shopify catalog versus private/mutation cache policies.
 - TypeScript compatibility and a production build under Next `15.5.25`.
+
+The implementation retains the three-second consistency wait, but the direct
+parser tests disable that delay to remain fast and do not claim timing coverage.
 
 The production build classifies storefront content routes as dynamic (`ƒ`)
 because the root layout reads the cart cookie. That classification is expected;
