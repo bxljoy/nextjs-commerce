@@ -1,7 +1,8 @@
 # Plan: Stable Next.js 15 storefront caching
 
-Status: local implementation, verification, and independent review complete;
-Vercel Preview and browser checks remain.
+Status: local implementation, independent review, and owner-attested Vercel
+Preview/browser acceptance complete. The owner chose to retain both branches
+and not merge this stable candidate into `main` at this time.
 
 Spec: `docs/specs/next15-stable-caching.md`.
 Branch: `learning/next15-stable-caching`.
@@ -105,11 +106,23 @@ After owner approval to push:
 - Compare soft navigation/back navigation with hard reload after invalidation.
 - Disable the temporary Preview webhook after acceptance.
 
+### Preview result
+
+On 2026-09-12, the owner manually confirmed the Shopify catalog/search/cart,
+Sanity document lifecycle, and Router Cache checks above. The signed Preview
+webhook required a dedicated Vercel automation-bypass header because Deployment
+Protection rejected unauthenticated service requests before Next.js. The owner
+reported disabling the temporary Preview webhook after validation.
+
+These are owner-attested browser and external-service checks; no Chrome DevTools
+MCP recording was available in this session.
+
 ## Completion and rollback
 
-This branch becomes merge-eligible only when local review and Preview acceptance
-pass and dependency changes introduce no unacceptable new risk. Merging remains
-a separate owner decision.
+Local review and Preview acceptance pass, and the branch introduces no new
+advisory relative to `main`. Eleven transitive audit findings remain disclosed
+for separate remediation. The stable branch remains verified interview material;
+the owner chose not to merge it so both implementations remain available.
 
 Rollback before merge is returning to unchanged `main`. After any future merge,
 rollback is redeploying the prior production commit while preserving existing

@@ -35,22 +35,28 @@
 
 ## Vercel Preview acceptance
 
-- [ ] Obtain approval before pushing the branch.
-- [ ] Confirm Preview-only environment values and branch URL.
-- [ ] Verify real Shopify catalog, product, collection, search, and sort flows.
-- [ ] Verify cart creation, quantity changes, deletion, checkout navigation, and
+Owner manually verified these checks on 2026-09-12. They are human-attested
+browser/service checks rather than recorded agent-driven browser runs.
+
+- [x] Obtain approval before pushing the branch.
+- [x] Confirm Preview-only environment values and stable branch alias.
+- [x] Verify real Shopify catalog, product, collection, search, and sort flows.
+- [x] Verify cart creation, quantity changes, deletion, checkout navigation, and
       isolation across two browser sessions.
-- [ ] Create a temporary signed Sanity webhook with a Preview-only secret.
-- [ ] Verify Sanity create, update, unpublish/delete, slug changes, indexes,
+- [x] Create a temporary signed Sanity webhook with a Preview-only signature
+      secret and Vercel automation bypass.
+- [x] Verify Sanity create, update, unpublish/delete, slug changes, indexes,
       metadata, and sitemap refresh.
-- [ ] Compare Router Cache soft/back navigation with a hard reload.
-- [ ] Disable the temporary Preview webhook after validation.
+- [x] Compare Router Cache soft/back navigation with a hard reload.
+- [x] Disable the temporary Preview webhook after validation.
 
 ## Merge decision
 
-- [ ] Confirm the branch introduces no unacceptable dependency advisory.
-- [ ] Record Preview evidence and remaining limitations.
-- [ ] Obtain explicit owner approval before merging or changing Production.
+- [x] Confirm the branch introduces no new dependency advisory; 11 existing
+      transitive findings remain disclosed for separate remediation.
+- [x] Record Preview evidence and remaining limitations.
+- [x] Record the owner's decision to keep both branches and not merge this
+      stable candidate into `main` at this time.
 
 `main`, the current Production deployment, and the Production webhook remain
-unchanged until the final merge decision.
+unchanged. The stable branch remains available as verified interview material.

@@ -155,15 +155,23 @@ The production build classifies storefront content routes as dynamic (`ƒ`)
 because the root layout reads the cart cookie. That classification is expected;
 it does not prove or disprove reuse of the underlying Data Cache entries.
 
-The following remain external acceptance checks before merge:
+On 2026-09-12, the owner manually verified the following against the Vercel
+Preview branch alias:
 
-- Real Shopify product, collection, search, sort, cart, and mutation behavior on
-  Vercel Preview.
-- Real signed Sanity create/update/delete/unpublish and slug-change events on a
-  branch-specific Preview webhook.
+- Real Shopify product, collection, search, sort, cart, and mutation behavior.
+- Cart isolation across two browser sessions.
+- Real signed Sanity create/update/delete/unpublish and slug-change events,
+  including dependent indexes, metadata, and sitemap output.
 - Browser soft-navigation, back-navigation, and hard-reload behavior.
-- Confirmation that the stable dependency diff introduces no unacceptable new
-  advisories.
+
+The Preview webhook used a separate Sanity signature secret plus a Vercel
+automation-bypass header because Deployment Protection otherwise rejected the
+request before Next.js. The temporary webhook was disabled after validation.
+These are owner-attested external checks, not an agent-recorded browser run.
+
+The stable dependency diff introduces no new advisory relative to `main` and
+removes 12 findings. Eleven transitive findings remain disclosed for separate
+remediation.
 
 ## Two-minute interview answer
 
@@ -218,9 +226,11 @@ volume or invalidation cost makes that additional contract worthwhile.
 
 ### Would you merge this branch?
 
-Only after local gates and real Vercel Preview checks pass. The branch is a
-potential stable replacement, not an automatic merge. Dependency advisories are
-triaged separately, but any regression introduced by this branch blocks merge.
+It passed local gates, independent review, and owner-attested Vercel Preview
+checks, so it is technically a merge candidate. The owner chose not to merge it
+at this time, preserving both the experimental `main` baseline and this stable
+implementation as interview material. Remaining dependency advisories stay in a
+separate remediation scope.
 
 ## Official sources
 
