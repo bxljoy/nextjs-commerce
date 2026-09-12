@@ -5,13 +5,13 @@ import {
 } from "lib/constants";
 import { isShopifyError } from "lib/type-guards";
 import { ensureStartsWith } from "lib/utils";
-import {
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag as cacheTag,
-  revalidateTag,
-} from "next/cache";
+import { revalidateTag } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getShopifyCacheOptions,
+  type ShopifyCacheOptions,
+} from "./cache-policy";
 import {
   addToCartMutation,
   createCartMutation,
@@ -62,14 +62,16 @@ type ExtractVariables<T> = T extends { variables: object }
   : never;
 
 export async function shopifyFetch<T>({
+  cache,
   headers,
+  next,
   query,
   variables,
 }: {
   headers?: HeadersInit;
   query: string;
   variables?: ExtractVariables<T>;
-}): Promise<{ status: number; body: T } | never> {
+} & ShopifyCacheOptions): Promise<{ status: number; body: T } | never> {
   try {
     if (!endpoint) {
       throw new Error("SHOPIFY_STORE_DOMAIN environment variable is not set");
@@ -77,6 +79,8 @@ export async function shopifyFetch<T>({
 
     const result = await fetch(endpoint, {
       method: "POST",
+      cache,
+      next,
       headers: {
         "Content-Type": "application/json",
         "X-Shopify-Storefront-Access-Token": key,
@@ -212,6 +216,7 @@ const reshapeProducts = (products: ShopifyProduct[]) => {
 
 export async function createCart(): Promise<Cart> {
   const res = await shopifyFetch<ShopifyCreateCartOperation>({
+    ...getShopifyCacheOptions("private"),
     query: createCartMutation,
   });
 
@@ -223,6 +228,7 @@ export async function addToCart(
 ): Promise<Cart> {
   const cartId = (await cookies()).get("cartId")?.value!;
   const res = await shopifyFetch<ShopifyAddToCartOperation>({
+    ...getShopifyCacheOptions("private"),
     query: addToCartMutation,
     variables: {
       cartId,
@@ -235,6 +241,7 @@ export async function addToCart(
 export async function removeFromCart(lineIds: string[]): Promise<Cart> {
   const cartId = (await cookies()).get("cartId")?.value!;
   const res = await shopifyFetch<ShopifyRemoveFromCartOperation>({
+    ...getShopifyCacheOptions("private"),
     query: removeFromCartMutation,
     variables: {
       cartId,
@@ -250,6 +257,7 @@ export async function updateCart(
 ): Promise<Cart> {
   const cartId = (await cookies()).get("cartId")?.value!;
   const res = await shopifyFetch<ShopifyUpdateCartOperation>({
+    ...getShopifyCacheOptions("private"),
     query: editCartItemsMutation,
     variables: {
       cartId,
@@ -261,10 +269,6 @@ export async function updateCart(
 }
 
 export async function getCart(): Promise<Cart | undefined> {
-  "use cache: private";
-  cacheTag(TAGS.cart);
-  cacheLife("seconds");
-
   const cartId = (await cookies()).get("cartId")?.value;
 
   if (!cartId) {
@@ -277,6 +281,7 @@ export async function getCart(): Promise<Cart | undefined> {
   }
 
   const res = await shopifyFetch<ShopifyCartOperation>({
+    ...getShopifyCacheOptions("private"),
     query: getCartQuery,
     variables: { cartId },
   });
@@ -292,10 +297,6 @@ export async function getCart(): Promise<Cart | undefined> {
 export async function getCollection(
   handle: string,
 ): Promise<Collection | undefined> {
-  "use cache";
-  cacheTag(TAGS.collections);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log(
       `Skipping getCollection for '${handle}' - Shopify not configured`,
@@ -304,6 +305,7 @@ export async function getCollection(
   }
 
   const res = await shopifyFetch<ShopifyCollectionOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.collections]),
     query: getCollectionQuery,
     variables: {
       handle,
@@ -322,10 +324,6 @@ export async function getCollectionProducts({
   reverse?: boolean;
   sortKey?: string;
 }): Promise<Product[]> {
-  "use cache";
-  cacheTag(TAGS.collections, TAGS.products);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log(
       `Skipping getCollectionProducts for '${collection}' - Shopify not configured`,
@@ -334,6 +332,7 @@ export async function getCollectionProducts({
   }
 
   const res = await shopifyFetch<ShopifyCollectionProductsOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.collections, TAGS.products]),
     query: getCollectionProductsQuery,
     variables: {
       handle: collection,
@@ -353,10 +352,6 @@ export async function getCollectionProducts({
 }
 
 export async function getCollections(): Promise<Collection[]> {
-  "use cache";
-  cacheTag(TAGS.collections);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log("Skipping getCollections - Shopify not configured");
     return [
@@ -375,6 +370,7 @@ export async function getCollections(): Promise<Collection[]> {
   }
 
   const res = await shopifyFetch<ShopifyCollectionsOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.collections]),
     query: getCollectionsQuery,
   });
   const shopifyCollections = removeEdgesAndNodes(res.body?.data?.collections);
@@ -401,16 +397,13 @@ export async function getCollections(): Promise<Collection[]> {
 }
 
 export async function getProduct(handle: string): Promise<Product | undefined> {
-  "use cache";
-  cacheTag(TAGS.products);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log(`Skipping getProduct for '${handle}' - Shopify not configured`);
     return undefined;
   }
 
   const res = await shopifyFetch<ShopifyProductOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.products]),
     query: getProductQuery,
     variables: {
       handle,
@@ -423,10 +416,6 @@ export async function getProduct(handle: string): Promise<Product | undefined> {
 export async function getProductRecommendations(
   productId: string,
 ): Promise<Product[]> {
-  "use cache";
-  cacheTag(TAGS.products);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log(
       `Skipping getProductRecommendations for '${productId}' - Shopify not configured`,
@@ -435,6 +424,7 @@ export async function getProductRecommendations(
   }
 
   const res = await shopifyFetch<ShopifyProductRecommendationsOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.products]),
     query: getProductRecommendationsQuery,
     variables: {
       productId,
@@ -453,16 +443,13 @@ export async function getProducts({
   reverse?: boolean;
   sortKey?: string;
 }): Promise<Product[]> {
-  "use cache";
-  cacheTag(TAGS.products);
-  cacheLife("days");
-
   if (!endpoint) {
     console.log("Skipping getProducts - Shopify not configured");
     return [];
   }
 
   const res = await shopifyFetch<ShopifyProductsOperation>({
+    ...getShopifyCacheOptions("catalog", [TAGS.products]),
     query: getProductsQuery,
     variables: {
       query,
