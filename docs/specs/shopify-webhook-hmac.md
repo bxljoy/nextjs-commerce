@@ -2,8 +2,8 @@
 
 ## Status
 
-Approved and implemented on the main feature branch. Local and protected
-Preview acceptance are complete; Production rollout remains pending.
+Approved, deployed and Production-verified on `main`. Local, protected Preview
+and Production acceptance are complete; the stable-branch port remains pending.
 
 The owner accepts the temporary Shopify cache-revalidation gap created by
 removing the legacy query-string secret from the manually configured webhook

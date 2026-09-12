@@ -758,5 +758,23 @@ Update the plan/checklist with exact commits and evidence, run the clean-HEAD lo
 - Every dedicated Vercel automation bypass was revoked, edge rejection was
   verified, temporary local artifacts were removed and the clipboard was cleared.
 
-Production merge, genuine Production event verification and legacy Vercel
-variable retirement remain pending explicit owner approval.
+### Production acceptance
+
+- `main` was fast-forwarded to reviewed commit
+  `56ed0fadf33a8379915693762e0060f56b1b5c07`, passed merged-result tests,
+  TypeScript and production build, and was pushed to `origin/main`.
+- Vercel deployed that exact commit to the Production alias with Ready status.
+- Agent-observed invalid HMAC verification returned HTTP 401; genuine Product and
+  Collection forward and reverse events refreshed previously warmed Production
+  pages on their first subsequent requests, and original titles were restored.
+- The owner attested that live Production Runtime Logs showed four genuine
+  `POST /api/revalidate` deliveries, all HTTP 200, with no raw body, HMAC value,
+  signing secret or query secret visible.
+- The obsolete combined Preview/Production `SHOPIFY_REVALIDATION_SECRET` Vercel
+  record was removed. Encrypted `SHOPIFY_WEBHOOK_SECRET` records remain in both
+  environments.
+- The six Production manual subscriptions remain active with HMAC-only endpoint
+  URLs.
+
+The main rollout is complete. The feature branch is retained until its reviewed
+shared verifier commits are ported to `learning/next15-stable-caching`.

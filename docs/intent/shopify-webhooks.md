@@ -1,6 +1,6 @@
 # Intent: Authenticate Shopify webhooks with HMAC
 
-**Status:** Implemented and Preview-verified; Production acceptance pending.
+**Status:** Deployed and Production-verified on `main`; stable port pending.
 **Date:** 2026-09-12
 **Supersedes:** Query-string authentication for `POST /api/revalidate`
 
@@ -109,8 +109,32 @@ Owner-attested evidence from Shopify Admin and the live Vercel Runtime Logs view
 - Both temporary Shopify subscriptions were deleted; the six Production
   subscriptions were left unchanged.
 
-No signing secret, HMAC, payload or bypass value was recorded. Production
-verification remains pending.
+No signing secret, HMAC, payload or bypass value was recorded.
+
+## Production verification
+
+Vercel deployed `main` commit `56ed0fadf33a8379915693762e0060f56b1b5c07`
+to the Production alias before acceptance began.
+
+Agent-observed evidence:
+
+- An invalid HMAC returned HTTP 401 without invalidation.
+- Previously warmed Production Product and Collection pages reflected the genuine
+  forward events on their first subsequent request.
+- Both pages returned to their original titles on the first request after the
+  genuine reverse events.
+
+Owner-attested evidence from live Vercel Runtime Logs:
+
+- Product and Collection forward and reverse events produced four genuine
+  `POST /api/revalidate` deliveries, all with HTTP 200.
+- The entries exposed no raw body, HMAC value, signing secret or query secret.
+
+After acceptance, the obsolete combined Preview/Production
+`SHOPIFY_REVALIDATION_SECRET` record was removed from Vercel. Separate encrypted
+`SHOPIFY_WEBHOOK_SECRET` records remain configured for both environments. The six
+Production manual subscriptions remain pointed at `/api/revalidate` without an
+application query secret.
 
 ## Rollback
 
