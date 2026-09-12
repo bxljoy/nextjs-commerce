@@ -1,3 +1,4 @@
+import { isValidSignature, SIGNATURE_HEADER_NAME } from "@sanity/webhook";
 import type { NextRequest } from "next/server";
 
 export const SANITY_CACHE_TAGS = {
@@ -9,6 +10,44 @@ type ParsedSanityWebhook = {
   body: { _type?: unknown } | null;
   isValidSignature: boolean | null;
 };
+
+/**
+ * Verify the exact bytes Sanity signed before parsing JSON. A valid event can
+ * briefly arrive before the corresponding Content Lake query is consistent.
+ *
+ * Source: https://github.com/sanity-io/webhook-toolkit#usage-with-nextjs
+ */
+export async function parseSanityWebhook(
+  request: NextRequest,
+  secret: string,
+  waitForContentLakeEventualConsistency = true,
+): Promise<ParsedSanityWebhook> {
+  const signature = request.headers.get(SIGNATURE_HEADER_NAME);
+
+  if (!signature) {
+    return { body: null, isValidSignature: null };
+  }
+
+  const rawBody = await request.text();
+  const validSignature = await isValidSignature(
+    rawBody,
+    signature,
+    secret.trim(),
+  );
+
+  if (!validSignature) {
+    return { body: null, isValidSignature: false };
+  }
+
+  if (waitForContentLakeEventualConsistency) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+
+  return {
+    body: rawBody.trim() ? JSON.parse(rawBody) : null,
+    isValidSignature: true,
+  };
+}
 
 export type SanityWebhookDependencies = {
   request: NextRequest;

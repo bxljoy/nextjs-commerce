@@ -1,14 +1,31 @@
 import assert from "node:assert/strict";
+import { encodeSignatureHeader, SIGNATURE_HEADER_NAME } from "@sanity/webhook";
 import test from "node:test";
 import {
   handleSanityWebhook,
   SANITY_CACHE_TAGS,
   type SanityWebhookDependencies,
 } from "./webhook.ts";
+import * as webhookModule from "./webhook.ts";
 
 const request = new Request("https://example.com/api/revalidate/sanity", {
   method: "POST",
 }) as SanityWebhookDependencies["request"];
+
+type ParseSanityWebhook = (
+  request: SanityWebhookDependencies["request"],
+  secret: string,
+  waitForContentLakeEventualConsistency?: boolean,
+) => Promise<{
+  body: { _type?: unknown } | null;
+  isValidSignature: boolean | null;
+}>;
+
+const parseSanityWebhook = (
+  webhookModule as unknown as {
+    parseSanityWebhook?: ParseSanityWebhook;
+  }
+).parseSanityWebhook;
 
 function dependencies(
   overrides: Partial<Omit<SanityWebhookDependencies, "request">> = {},
@@ -31,6 +48,50 @@ function dependencies(
     },
   };
 }
+
+test("parses an authentic signature against the unmodified request body", async () => {
+  assert.equal(typeof parseSanityWebhook, "function");
+
+  const secret = "signed-payload-test-secret";
+  const body = ' {"_type":"page"}\n';
+  const signature = await encodeSignatureHeader(body, Date.now(), secret);
+  const signedRequest = new Request(
+    "https://example.com/api/revalidate/sanity",
+    {
+      method: "POST",
+      body,
+      headers: { [SIGNATURE_HEADER_NAME]: signature },
+    },
+  ) as SanityWebhookDependencies["request"];
+
+  const parsed = await parseSanityWebhook!(signedRequest, secret, false);
+
+  assert.deepEqual(parsed, {
+    body: { _type: "page" },
+    isValidSignature: true,
+  });
+});
+
+test("rejects an invalid real signature before parsing its payload", async () => {
+  assert.equal(typeof parseSanityWebhook, "function");
+
+  const signedRequest = new Request(
+    "https://example.com/api/revalidate/sanity",
+    {
+      method: "POST",
+      body: "not-json",
+      headers: { [SIGNATURE_HEADER_NAME]: "invalid-signature" },
+    },
+  ) as SanityWebhookDependencies["request"];
+
+  const parsed = await parseSanityWebhook!(
+    signedRequest,
+    "signed-payload-test-secret",
+    false,
+  );
+
+  assert.deepEqual(parsed, { body: null, isValidSignature: false });
+});
 
 test("fails closed when the server secret is missing", async () => {
   let parseCalled = false;
