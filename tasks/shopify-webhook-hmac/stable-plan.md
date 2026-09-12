@@ -268,7 +268,7 @@ git commit -m "refactor: authenticate stable Shopify webhook route"
 - Documents: stable adapter, common HMAC contract, manual signing secret, protected Preview, and separate-branch decision
 - Removes: stable branch's legacy query-secret documentation
 
-- [ ] **Step 1: Replace the environment template variable**
+- [x] **Step 1: Replace the environment template variable**
 
 In `.env.example`, replace:
 
@@ -284,7 +284,7 @@ SHOPIFY_WEBHOOK_SECRET=""
 
 Do not copy a real Vercel or local value.
 
-- [ ] **Step 2: Port the accepted Shopify intent record**
+- [x] **Step 2: Port the accepted Shopify intent record**
 
 Copy the reviewed intent document from main without using the working tree as an intermediary:
 
@@ -297,7 +297,7 @@ mv "$intent_file" docs/intent/shopify-webhooks.md
 
 Read it completely and adjust only statements that explicitly describe the active branch adapter. The common authentication, threat, external configuration, and rollback decisions must remain identical.
 
-- [ ] **Step 3: Update stable README and interview notes**
+- [x] **Step 3: Update stable README and interview notes**
 
 Update `README.md` and `docs/learning/next15-stable-caching.md` to state:
 
@@ -312,7 +312,7 @@ Update `README.md` and `docs/learning/next15-stable-caching.md` to state:
 
 Remove every statement that says Shopify uses a shared query-string secret or always responds with HTTP 200 to invalid authentication.
 
-- [ ] **Step 4: Format, test, and scan documentation**
+- [x] **Step 4: Format, test, and scan documentation**
 
 Run:
 
@@ -331,7 +331,7 @@ git diff --check
 
 Expected: all checks pass with no legacy contract or concrete secret material.
 
-- [ ] **Step 5: Commit stable configuration and documentation**
+- [x] **Step 5: Commit stable configuration and documentation**
 
 Run:
 
@@ -342,6 +342,11 @@ git add .env.example README.md docs/intent/shopify-webhooks.md \
 git diff --cached --check
 git commit -m "docs: document stable Shopify webhook HMAC"
 ```
+
+Completed in `66da90056bba868f01f0cf1f804ea460ea338b46`. Prettier,
+30/30 tests, TypeScript, shared-file identity, stable API scans and secret scans
+passed; the complete stable build and unchanged audit comparison are recorded in
+Task 5 evidence.
 
 ---
 
