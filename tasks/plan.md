@@ -1,93 +1,116 @@
-# Plan: Stable Next.js 15 caching comparison
+# Plan: Stable Next.js 15 storefront caching
 
-Status: local implementation and automated cache lab complete; browser and Vercel Preview checks remain.
+Status: local implementation complete; final local verification, Vercel Preview,
+and browser checks remain.
 
 Spec: `docs/specs/next15-stable-caching.md`.
 Branch: `learning/next15-stable-caching`.
-Baseline: main at `3b38dcd`; capture the actual baseline again before implementation.
+Baseline: `main` at `3b38dcd`.
 Previous completed plan: `tasks/archive/sanity-webhook/plan.md`.
 
-## 1. Establish baseline and compatible stable version
+## 1. Establish the compatible stable version
 
-- Record current tests, build route classifications, data reads, and webhook/cart behavior.
-- Select an exact patched stable 15.x version from registry metadata and official advisories.
-- Check React/next-sanity/Geist/OpenNext/Node peers and supported APIs. Identify uses of `use cache`, `cacheLife`, `cacheTag`, `updateTag`, private cache, and `revalidateTag` profiles.
-- Record current audit findings and distinguish baseline risks from migration regressions.
-- Likely files: package manifest, lockfile, comparison notes.
-- Gate: no version changes until a compatible version and migration mapping are recorded. Ask if supporting dependency changes are needed.
+- Capture baseline tests, build classifications, integration behavior, and cache
+  directives.
+- Select an exact patched stable Next.js 15 release from registry metadata and
+  official advisories.
+- Check React, Sanity, Geist, OpenNext, Node, and TypeScript compatibility.
+- Record audit findings separately from migration regressions.
 
-### Compatibility findings and result
+### Result
 
-- Registry resolved stable Next.js 15 to `15.5.25`. Its declared peers accept React 19.0.0 and Node 22.15.0; installed Geist and OpenNext peer ranges also accept it. Next.js `15.5.24` contains the two cited critical security fixes, so `15.5.25` includes them.
-- Installed `next-sanity@13.3.4` required Next.js 16 and React 19.2.3+. Version 12 also required Next.js 16; version 11 supported Next.js 15 but required Sanity client 7 rather than the installed client 8.
-- The owner approved replacing that single wrapper use with direct `@sanity/webhook@4.0.4`. The implementation retains raw-body validation and the consistency wait, with real signature tests; `@sanity/client@8.4.0` remains.
-- Baseline `pnpm test` had seven passing tests. The stable branch now has twelve passing tests plus a passing production cache lab, typecheck and build.
-- `pnpm audit --audit-level high` remains non-zero: 11 findings (7 high, 4 moderate) in transitive sharp/PostCSS/nanoid paths. This branch does not run blanket audit fixes; dependency remediation remains separate.
+- Next.js is pinned to `15.5.25`; React 19.0.0, Geist, and OpenNext accept it.
+- Installed `next-sanity@13.3.4` required Next.js 16 and was used only for webhook
+  parsing. The owner approved direct `@sanity/webhook@4.0.4` usage while keeping
+  `@sanity/client@8.4.0`.
+- The selected Next patch includes the critical fixes released in `15.5.24`.
+- The stable lockfile audit reports 11 transitive findings (7 high, 4
+  moderate) in sharp/PostCSS/nanoid paths. The `main` lockfile reports 23 (12
+  high, 11 moderate), including additional Next.js, js-yaml, and smol-toml
+  advisories. This branch introduces no new advisory and removes 12 findings,
+  but broader remediation remains separate; do not apply a blanket audit fix.
 
-## 2. Specify regression tests before the coordinated migration
+## 2. Add regression tests before migration
 
-- Test cached catalog options versus uncached cart queries/mutations.
-- Test Sanity argument-specific keys, published-only reads, page/post tags and cached misses.
-- Extend webhook tests to cover malformed payloads and version-compatible invalidation wiring; preserve existing seven tests.
-- Record production HTTP/browser procedures for cart isolation and cache behavior.
-- Likely files: existing webhook tests plus focused cache-policy tests near each integration.
-- Gate: record expected red results without removing existing assertions.
+- Test explicit shared catalog versus private cart policies.
+- Test Sanity TTL, tags, slug argument forwarding, query identity, and client
+  configuration namespace.
+- Test real raw-body Sanity signatures, malformed payloads, unsupported types,
+  and invalidation selection.
+- Preserve all existing assertions and observe new tests fail before production
+  changes.
 
-## 3. Migrate cache boundaries in small, coordinated steps
+## 3. Migrate stable cache boundaries
 
-The version pin and removal of canary-only APIs form one compatibility unit. Intermediate migration work is not deployable until the build gate passes; do not push broken intermediate states.
+1. Make catalog calls explicitly `force-cache` with a 3600-second TTL and
+   existing product/collection tags.
+2. Make cart reads, creation, and mutations explicitly `no-store`; keep cookie
+   reads outside persistent cache boundaries.
+3. Replace Sanity function directives with `unstable_cache`; include accessor,
+   query text, client namespace, and invocation arguments in cache identity.
+4. Preserve published-only Sanity reads, disabled Sanity CDN, coarse type tags,
+   raw webhook signatures, and the three-second consistency wait.
+5. Use stable `revalidateTag` and `revalidatePath` APIs.
+6. Pin dependencies and remove PPR, `use cache`, private cache directives,
+   `cacheLife`, `cacheTag`, `updateTag`, and experimental configuration.
+7. Retain the cookie-dependent root layout and existing UI. Accept dynamic
+   storefront route classifications rather than redesigning the cart.
 
-1. Add explicit Shopify catalog fetch options and `no-store` cart policies. Include body/query/sort variables in cache identity. Keep transforms and GraphQL operations unchanged.
-2. Replace Sanity function directives with `unstable_cache` wrappers. Pass slug as an argument; keep configuration guards and dynamic APIs outside cached callbacks. Preserve type tags and the uncached Sanity origin behind the wrapper.
-3. Replace private cart caching with uncached reads. Map cart Server Action refresh and both webhook invalidation calls to the selected stable API while retaining external response/security contracts.
-4. Pin the stable Next.js package, update the lockfile through pnpm, and remove experimental PPR/useCache configuration. Check `inlineCss` support independently rather than assume compatibility.
-5. Retain the cookie-dependent root layout and existing UI. Record dynamic route classifications honestly.
+Gate: tests, formatting, TypeScript, and production build pass with no private
+cart cache and no residual experimental cache APIs.
 
-- Files by seam: `lib/shopify/index.ts`; `lib/sanity/index.ts`; `components/cart/actions.ts`; webhook route/adapters; `next.config.ts`; package manifest/lockfile.
-- Gate: unit tests, formatting, typecheck and build pass as a complete migration. No cart data in shared cache. No residual canary-only imports/directives.
+## 4. Document the real stable implementation
 
-## 4. Run controlled caching experiments
+Maintain `docs/learning/next15-stable-caching.md` as interview material grounded
+in the storefront:
 
-Use `pnpm build && pnpm start`, not development HMR, to draw production-cache conclusions.
+- Separate request memoization, Data Cache, Full Route Cache, Router Cache, and
+  browser/CDN caching.
+- Explain why dynamic rendering can reuse cached non-personal data.
+- Explain PPR versus Suspense without claiming stable storefront ISR.
+- Describe Shopify catalog/cart boundaries and Sanity query/webhook boundaries.
+- State which behavior is unit-tested, build-verified, externally verified, or
+  still unverified.
+- Do not include a synthetic cache lab or measured claims from one.
 
-| Experiment              | Procedure                                                                                 | Required observation                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Data Cache              | Read identical query twice with controlled origin counters, then change query arguments   | Cached result reused; changed arguments stay isolated                                     |
-| Time-based revalidation | Warm a short-TTL test entry, update controlled origin, wait past TTL, request twice       | Distinguish stale first response from eventual regenerated value                          |
-| Webhook invalidation    | Warm detail/index/miss, change fixture, deliver signed type event                         | Fresh subsequent server reads, including new slug and removed old slug                    |
-| Cart isolation          | Use two cookie jars and mutate only one                                                   | No cross-user lines/totals; cart origin requests are uncached                             |
-| Router Cache            | Warm browser navigation, deliver webhook, compare back/soft navigation with refresh       | Explain why a webhook does not push updates to an existing tab                            |
-| ISR                     | Use cookie-free isolated Next fixture with literal route `revalidate` and controlled data | Static build classification and actual regenerated HTML/RSC; test stale-on-origin-failure |
+## 5. Local acceptance
 
-Use controlled fixtures/test doubles for automated origin changes; do not mutate production Sanity/Shopify data to prove caching. Avoid logging credentials, full payloads or cart IDs. Exact fixture packaging is a review checkpoint: reuse dependencies where possible; no new production route without approval.
+Run from a clean working tree after implementation:
 
-## 5. Write the interview comparison
+```bash
+pnpm test
+pnpm exec tsc --noEmit
+pnpm build
+pnpm audit --audit-level high
+```
 
-Create `docs/learning/next15-caching-comparison.md` covering:
+Also scan the diff for secrets, residual experimental directives, weakened tests,
+and unexpected dependency changes. Obtain a focused independent re-review of
+all fixes and updated merge claims.
 
-- Cache owner, key, lifetime, invalidation and isolation for each layer.
-- PPR rendering versus cached data/functions, and why Suspense alone is not PPR.
-- Cached data inside dynamic SSR versus full-route ISR.
-- Time-based stale-while-revalidate versus explicit on-demand expiry.
-- React render-pass memoization versus persistent caches, including POST GraphQL.
-- What Redis could solve separately (shared application cache, rate limits, sessions), without assuming Keystone's use case.
-- A two-minute explanation and evidence-backed answers to common interview questions.
+## 6. Vercel Preview acceptance
 
-Gate: every claim points to an observed result or a documented limitation; no invented latency or cache-hit numbers.
+After owner approval to push:
 
-## 6. Optional Vercel Preview validation
-
-After local acceptance and owner approval to push:
-
-- Deploy only the learning branch. Do not merge into main automatically.
-- Verify Preview environment values and stable branch URL.
-- If testing content events, create a temporary branch-specific signed Sanity webhook. Existing Production webhook must remain untouched.
-- Preview commonly shares the production dataset: use approved test content or a separate fixture/dataset, not accidental edits to live pages.
-- Check preview storefront, cart isolation, webhook authentication and cache refresh.
-- Remove temporary webhook when done; preserve notes and learning branch as comparison artifacts.
+- Deploy only this branch; do not merge automatically.
+- Confirm Preview has the real Shopify configuration and Preview-scoped Sanity
+  configuration.
+- Test homepage products, collection pages, product details, search, sort, cart
+  creation, quantity changes, deletion, and checkout navigation.
+- Use two browser sessions to check cart isolation.
+- Create a temporary branch-specific Sanity webhook with a secret different
+  from Production. Do not alter the Production webhook.
+- Verify page/post create, update, unpublish/delete, slug changes, indexes,
+  metadata, and sitemap behavior.
+- Compare soft navigation/back navigation with hard reload after invalidation.
+- Disable the temporary Preview webhook after acceptance.
 
 ## Completion and rollback
 
-Complete implementation only when local gates and experiment evidence pass. Preview validation is recorded separately, not implied by a build. Preserve known audit limitations explicitly.
+This branch becomes merge-eligible only when local review and Preview acceptance
+pass and dependency changes introduce no unacceptable new risk. Merging remains
+a separate owner decision.
 
-Rollback is returning to unchanged `main`; no production rollout is planned. Do not reuse the previous webhook feature's merge-to-production checklist for this learning branch.
+Rollback before merge is returning to unchanged `main`. After any future merge,
+rollback is redeploying the prior production commit while preserving existing
+Production webhook configuration.

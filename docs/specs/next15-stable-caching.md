@@ -1,86 +1,127 @@
-# Spec: Stable Next.js 15 caching comparison
+# Spec: Stable Next.js 15 storefront caching
 
 ## Status and intent
 
-Scope confirmed with the owner; implementation has not started.
+The owner approved a stable Next.js 15 implementation as a potential replacement
+for the experimental PPR/`use cache` configuration on `main`. Work remains on
+`learning/next15-stable-caching`; merging requires a separate decision after
+local and Vercel Preview acceptance.
 
-This is an interview-learning exercise, not a proposed production downgrade or a claim about Keystone's internal architecture. Preserve `main` as the Next.js 15 canary PPR/`use cache` baseline. Implement the comparison on `learning/next15-stable-caching`, with no automatic merge to main.
-
-The baseline is experimental Next.js 15, not Next.js 16's stable Cache Components configuration.
+The goal is a conventional, production-capable stable implementation—not a
+synthetic cache comparison lab and not a claim about another application's
+architecture.
 
 ## Objective
 
-Explain and demonstrate the differences between request memoization, Data Cache, Full Route Cache/ISR, client Router Cache, and PPR/function-cache boundaries. Keep storefront appearance, Shopify operations, published Sanity content, and webhook authentication intact.
+Keep storefront appearance, Shopify behavior, published Sanity content, and
+webhook contracts intact under an exact stable Next.js 15 release. Use explicit
+cache policies without PPR, `cacheComponents`, `use cache`, private cache
+directives, or canary-only invalidation APIs. Preserve private-cart isolation and
+make the resulting behavior useful as interview material grounded in the real
+application.
 
-## Version and compatibility gate
+## Version and compatibility contract
 
-Before implementation, select and pin an exact maintained, patched stable Next.js 15 release. Verify registry metadata, official advisories, and compatibility with React, next-sanity, Geist, OpenNext, Node and TypeScript. Do not guess the newest patch or automatically downgrade supporting packages. Stop for a scope decision if a compatible secure combination cannot be established.
-
-Existing dependency advisories are not resolved by these documents. Record whether the selected version fixes the baseline Next.js advisory and identify any remaining release blockers. Do not blanket-run audit fixes.
+- Pin the exact maintained stable release selected during compatibility review:
+  Next.js `15.5.25`.
+- Keep React, Geist, OpenNext, TypeScript, and integration dependencies within
+  compatible peer ranges.
+- Replace the incompatible `next-sanity` wrapper use with the official
+  `@sanity/webhook@4.0.4` toolkit while preserving raw-body verification.
+- Record dependency advisories rather than applying unrelated blanket upgrades.
+  Any advisory introduced by this branch blocks merge; broader remediation stays
+  separate.
 
 ## Cache contract
 
-| Concern             | Comparison implementation                                                                                      | Evidence                                                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Shopify catalog     | Explicit fetch Data Cache with positive `next.revalidate` and existing product/collection tags                 | Repeated server requests reuse catalog data; query/sort arguments remain distinct                 |
-| Sanity content      | Published client queries behind `unstable_cache`, keyed by query arguments and tagged by pages/posts           | Detail, index, metadata and sitemap share valid cached content; slug values do not collide        |
-| Request memoization | Optional React `cache` around repeated identical reads within a render                                         | Explain why this is not persistent caching and why POST GraphQL is not automatically GET-memoized |
-| Cart reads          | Explicit `cache: "no-store"`; read cookies outside shared cache boundaries                                     | Two independent cookie jars never share cart data                                                 |
-| Cart mutations      | Uncached GraphQL operations; refresh affected UI using supported stable Server Action invalidation             | Add, quantity, delete and checkout behavior retained                                              |
-| Webhooks            | Retain signature verification and existing external URLs; use selected version's supported `revalidateTag` API | First new server read after successful on-demand invalidation is fresh                            |
-| Full Route Cache    | Only static-eligible routes get full-route ISR                                                                 | Build classification plus regeneration evidence, not a `revalidate` export alone                  |
-| Router Cache        | Document separate browser behavior                                                                             | Compare soft navigation/back navigation, `router.refresh()` and hard reload                       |
+| Concern             | Stable implementation                                                                                       |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Shopify catalog     | Explicit fetch Data Cache with `force-cache`, a 3600-second TTL, and existing product/collection tags       |
+| Sanity content      | Published client queries behind `unstable_cache`, keyed by accessor, query, client namespace, and arguments |
+| Request memoization | Explain render-pass GET/HEAD memoization separately; do not rely on it for Shopify POST GraphQL             |
+| Cart reads          | Explicit `cache: "no-store"`; read cookies outside persistent cache boundaries                              |
+| Cart mutations      | Uncached GraphQL operations followed by supported stable path revalidation                                  |
+| Webhooks            | Preserve authentication and public URLs; use stable one-argument `revalidateTag`                            |
+| Full Route Cache    | Do not claim storefront ISR: the cookie-dependent root layout makes storefront routes dynamic               |
+| Router Cache        | Document and manually verify browser behavior separately from server invalidation                           |
 
-Use explicit finite TTLs (initially 3600 seconds for editorial/catalog reads). Short experimental TTLs belong in an isolated lab or explicit test configuration, not a silently weakened production default. Time-based revalidation may serve a stale response while regeneration occurs; it does not mean a timer fetches fresh data in the background.
+Use explicit finite one-hour TTLs for editorial and catalog reads. Time-based
+revalidation may serve stale data while regeneration occurs; it does not run a
+background timer in the absence of requests.
 
-Avoid stacked persistent caches around the same request. Keep Sanity CDN disabled and retain the webhook's consistency wait. Check the selected version's signatures rather than assuming `updateTag`, `cacheLife`, or two-argument `revalidateTag` exist.
+Avoid stacked persistent caches around the same request. Keep Sanity CDN reads
+disabled and retain the webhook's three-second consistency wait.
 
-## Rendering boundary: an important limitation
+## Rendering boundary
 
-`app/layout.tsx` currently starts a cookie-dependent cart read and the navbar consumes it. Without PPR, that dynamic dependency can prevent Full Route Cache eligibility throughout the storefront. Cached data can still be reused while routes render on each request.
+`app/layout.tsx` starts a cookie-dependent cart read and the navbar consumes it.
+Without PPR, this request-specific dependency prevents shared Full Route Cache
+entries for storefront routes. Cached non-personal Shopify and Sanity data can
+still be reused while each request renders dynamically.
 
-The main comparison must preserve that behavior and explain the result honestly. Do not move the cart into a new client-fetch API merely to obtain static build markers.
-
-For genuine route-level ISR evidence, use a small separate learning fixture with a cookie-free root layout and deterministic content source. It is not part of the deployed storefront or a UI redesign. Confirm its packaging during planning review; if it would require new dependencies or production routes, ask first. A conceptual example alone must not be reported as a verified ISR experiment.
+Do not move the cart into a new client-fetch architecture merely to obtain
+static build markers. The dynamic build classification is expected and must be
+reported honestly.
 
 ## Acceptance criteria
 
-1. Main and its deployed production site remain unchanged.
-2. The comparison pins an exact stable Next.js 15 version and removes reliance on PPR, `useCache`, `use cache: private`, Cache Components tags/lifetimes, and unsupported Server Action APIs.
-3. Catalog/content reads have explicit cache policy and preserve argument-specific results, tags and published-only behavior.
-4. Cart reads and writes cannot enter the shared Data Cache; independent-user and mutation tests pass.
-5. Signed Sanity create/update/delete/unpublish events invalidate details, cached misses, indexes, metadata and sitemap data; a slug rename refreshes both old and new lookups. Shopify webhook authentication and public response behavior remain unchanged.
-6. Repeatable production-mode experiments distinguish Data Cache reuse from Full Route Cache reuse and request memoization.
-7. A static-eligible isolated fixture demonstrates time-based ISR, including stale-while-revalidate and recovery from origin failure.
-8. Browser experiments document Router Cache limitations after external webhook invalidation; existing tabs are not promised immediate freshness.
-9. A short interview guide includes measured results, commands, trade-offs, and uncertainty rather than claimed knowledge of Keystone's deployment.
+1. The branch pins Next.js `15.5.25` and contains no PPR, Cache Components,
+   `use cache`, `use cache: private`, `cacheLife`, `cacheTag`, `updateTag`, or
+   unsupported invalidation signatures.
+2. Storefront UI, routes, Shopify operations, Sanity published-content behavior,
+   and public webhook URLs remain unchanged.
+3. Every Shopify catalog read has an explicit finite tagged policy; every cart
+   read, creation, and mutation is explicitly `no-store`.
+4. Sanity cache keys include closed-over GROQ query text and a namespace for
+   project, dataset, API version, perspective, and CDN mode. Slugs remain
+   function arguments.
+5. Signed Sanity create/update/delete/unpublish events invalidate detail,
+   indexes, metadata, sitemap data, cached misses, and both sides of a slug
+   change. Invalid or malformed requests never invalidate data.
+6. Shopify webhook authentication and its existing public HTTP response behavior
+   remain unchanged.
+7. Unit tests, formatting, TypeScript, and the production build pass. Storefront
+   route classifications are documented without treating build success as
+   external integration proof.
+8. A Vercel Preview verifies real Shopify catalog/search/cart flows and real
+   signed Sanity events using Preview-only secrets and a temporary branch
+   webhook.
+9. Browser navigation and hard reload confirm the documented Router Cache limit:
+   a server webhook does not live-update an already-open tab.
+10. The interview guide describes the real implementation, evidence, limits,
+    trade-offs, and remaining merge gates without synthetic lab claims.
 
-## Structure, style and commands
+## Files and commands
 
 - Spec: `docs/specs/next15-stable-caching.md`
 - Plan/checklist: `tasks/plan.md`, `tasks/todo.md`
-- Prior completed webhook plan: `tasks/archive/sanity-webhook/`
-- Proposed learning notes: `docs/learning/next15-caching-comparison.md`
-- Existing runtime seams: `next.config.ts`, `lib/shopify/index.ts`, `lib/sanity/index.ts`, cart actions, root layout, and webhook routes.
-
-Keep existing TypeScript named exports and Prettier style. Prefer explicit cache policy over a universal cached transport: a generic transport that caches cart mutations is unacceptable.
+- Interview notes: `docs/learning/next15-stable-caching.md`
+- Runtime seams: `next.config.ts`, `lib/shopify/index.ts`,
+  `lib/sanity/index.ts`, cart actions, root layout, and webhook routes.
 
 ```bash
 pnpm test
 pnpm exec tsc --noEmit
 pnpm build
-pnpm start
 pnpm audit --audit-level high
 ```
 
-Use the built-in Node test runner for policy tests, production-mode HTTP checks for caching, and a real browser for Router Cache behavior. Add repeatable experiment commands during implementation; record failures as well as passes. Do not treat formatting or a passing build as proof of cache correctness.
+Use the Node test runner for cache-policy and webhook regression tests. Use a
+real Vercel Preview for service behavior and a real browser for Router Cache
+behavior. Do not treat formatting, build output, or mocked requests as proof of
+external end-to-end correctness.
 
 ## Boundaries
 
-- Always: keep secrets out of logs/files, preserve signed webhooks, scope preview configuration separately, test before claiming behavior.
-- Ask first: new dependencies, significant cart architecture changes, external dataset edits, protection changes, or merging this learning branch.
-- Never: modify production webhooks, expose private carts through shared caching, silently change service semantics, or weaken tests to accommodate a downgrade.
-- Out of scope: Redis, Elasticsearch, UI redesign, draft mode, platform migration, full AWS deployment validation, and unrelated dependency modernization.
+- Always: keep secrets out of logs/files, preserve signed webhooks, isolate
+  Preview configuration, and distinguish automated from external evidence.
+- Ask first: new dependencies, significant cart architecture changes, external
+  dataset edits, protection changes, pushing, or merging.
+- Never: modify Production webhooks during Preview testing, expose private carts
+  through shared caching, silently change service semantics, or weaken tests to
+  obtain a green build.
+- Out of scope: Redis, Elasticsearch, UI redesign, draft mode, platform
+  migration, and unrelated dependency modernization.
 
 ## References
 
@@ -88,5 +129,7 @@ Use the built-in Node test runner for policy tests, production-mode HTTP checks 
 - https://nextjs.org/docs/15/app/api-reference/functions/fetch
 - https://nextjs.org/docs/15/app/api-reference/functions/unstable_cache
 - https://nextjs.org/docs/15/app/api-reference/functions/revalidateTag
+- https://nextjs.org/docs/15/app/api-reference/functions/revalidatePath
 
-Versioned documentation is the starting point; validate signatures and runtime behavior against the exact installed patch.
+Versioned documentation is the starting point; validate signatures and runtime
+behavior against the exact installed patch.

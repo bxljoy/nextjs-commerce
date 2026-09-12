@@ -29,12 +29,13 @@ lib/shopify/    hand-rolled GraphQL client — the Storefront API is plain
 lib/sanity/     GROQ via @sanity/client, cached through unstable_cache
 ```
 
-This learning branch uses stable Next.js 15 cache APIs explicitly:
+This stable Next.js 15 candidate uses conventional cache APIs explicitly:
 
 - Shopify catalog GraphQL calls use the fetch Data Cache with
   `cache: "force-cache"`, a one-hour TTL and product/collection tags.
-- Sanity query functions use `unstable_cache` with a one-hour TTL. Function
-  arguments distinguish detail entries and coarse page/post tags drive webhooks.
+- Sanity query functions use `unstable_cache` with a one-hour TTL. Query text,
+  client configuration and function arguments define cache identity; coarse
+  page/post tags drive webhooks.
 - Cart reads and every mutation use `cache: "no-store"`; cart cookies are read
   outside shared cache boundaries.
 
@@ -85,17 +86,12 @@ pnpm install
 pnpm dev          # http://localhost:3000
 pnpm build        # production build
 pnpm test         # unit tests + formatting
-pnpm lab:cache    # deterministic production-mode caching experiments
 ```
 
 Cache conclusions should come from a production build, not development HMR.
 Next.js can reuse server fetches across HMR even when they specify `no-store`.
 Shopify and Sanity webhooks also cannot reach `localhost` directly; expose the
 signed endpoint through a tunnel only when deliberately testing webhooks.
-
-`experiments/next15-cache-lab/` demonstrates persistent Data Cache reuse,
-time-based stale-while-revalidate, tag invalidation, two-cookie cart isolation,
-and Full Route Cache/ISR failure recovery without changing the storefront.
 
 ## Vercel preview webhook test
 
@@ -125,7 +121,8 @@ production webhook and secret are configured.
   misconfigured deploy fails silently.
 - The root layout reads the cart cookie. Without PPR that makes storefront
   routes dynamically rendered, although their Shopify/Sanity data can still be
-  reused from the Data Cache. The isolated cache lab demonstrates genuine ISR.
+  reused from the Data Cache. The application does not claim route-level ISR
+  for these cookie-dependent storefront routes.
 - The Shopify webhook endpoint always answers 200, including on a rejected
   secret, so Shopify does not retry forever. The Sanity endpoint instead uses
   real 400/401/500 statuses and verifies the untouched raw request body with
@@ -141,8 +138,8 @@ production webhook and secret are configured.
 
 `docs/intent/sanity-cms.md` records why the CMS is scoped the way it is,
 including what was deliberately left out and one piece of reasoning that turned
-out to be wrong. `docs/learning/next15-caching-comparison.md` records the stable
-cache experiment, measured results and interview explanation.
+out to be wrong. `docs/learning/next15-stable-caching.md` explains the stable
+Shopify and Sanity implementation, trade-offs, evidence, and merge gates.
 
 ## License
 

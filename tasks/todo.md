@@ -1,37 +1,55 @@
-# Stable Next.js 15 caching comparison
+# Stable Next.js 15 storefront caching
 
 ## Preparation
 
-- [x] Confirm the interview-learning scope with the owner.
-- [x] Create the isolated learning branch without changing main.
+- [x] Create the isolated stable Next.js 15 branch without changing `main`.
 - [x] Archive the completed Sanity webhook plan/checklist.
-- [x] Write the comparison spec and implementation plan.
-- [x] Review spec, plan and isolated ISR fixture approach with owner.
+- [x] Select and pin a patched stable Next.js 15 release.
+- [x] Confirm the branch may become a merge candidate after Preview acceptance.
+- [x] Remove the synthetic cache-lab requirement from the approved scope.
 
 ## Implementation
 
-- [x] Capture baseline build, tests and rendering classifications.
-- [x] Verify and record exact patched stable Next.js 15 version and peer compatibility.
-- [x] Obtain approval to replace incompatible next-sanity with official @sanity/webhook.
-- [x] Record dependency/security risks and required approvals.
-- [x] Add and observe failing cache-policy regression tests.
+- [x] Replace incompatible `next-sanity` webhook parsing with
+      `@sanity/webhook` while preserving signatures and consistency wait.
 - [x] Configure explicit Shopify catalog caching and uncached cart transport.
 - [x] Migrate Sanity reads to tagged, argument-keyed stable cache wrappers.
-- [x] Adapt webhook and cart-action invalidation to selected version.
-- [x] Pin stable Next.js and remove experimental feature dependencies.
-- [x] Pass tests, formatting, TypeScript and production build.
+- [x] Include closed-over query text and Sanity client configuration in cache
+      identity.
+- [x] Adapt webhook and cart-action invalidation to stable APIs.
+- [x] Remove PPR, Cache Components directives, and experimental configuration.
+- [x] Remove the isolated cache lab and its scripts/documentation.
+- [x] Refocus interview notes on the real Shopify and Sanity implementation.
 
-## Learning evidence
+## Local acceptance
 
-- [x] Demonstrate data cache reuse and query-argument isolation.
-- [x] Demonstrate TTL expiry and stale-while-revalidate behavior.
-- [ ] Demonstrate real external signed webhook refresh including creation, deletion and slug change (Preview check).
-- [x] Prove cart isolation with two cookie jars.
-- [ ] Compare browser Router Cache versus server cache refresh (manual; browser MCP unavailable).
-- [x] Demonstrate genuine route ISR using an approved cookie-free fixture.
-- [x] Record failure/recovery behavior and reproduce commands.
-- [x] Write the interview comparison guide.
-- [ ] Review final diff, tests and known audit limitations.
-- [ ] Obtain approval before push; verify Vercel Preview separately if requested.
+- [x] Pass all 15 unit tests and formatting.
+- [x] Pass TypeScript validation.
+- [x] Pass a clean production build and inspect route classifications.
+- [x] Re-run audit: stable branch has 11 findings (7 high, 4 moderate) versus
+      `main` with 23 (12 high, 11 moderate); no new advisory was introduced.
+- [x] Scan for secrets, residual experimental APIs, and unexpected dependency
+      changes.
+- [ ] Complete a focused independent re-review of the final diff.
 
-Main and Production must remain unchanged. No automatic merge is planned.
+## Vercel Preview acceptance
+
+- [ ] Obtain approval before pushing the branch.
+- [ ] Confirm Preview-only environment values and branch URL.
+- [ ] Verify real Shopify catalog, product, collection, search, and sort flows.
+- [ ] Verify cart creation, quantity changes, deletion, checkout navigation, and
+      isolation across two browser sessions.
+- [ ] Create a temporary signed Sanity webhook with a Preview-only secret.
+- [ ] Verify Sanity create, update, unpublish/delete, slug changes, indexes,
+      metadata, and sitemap refresh.
+- [ ] Compare Router Cache soft/back navigation with a hard reload.
+- [ ] Disable the temporary Preview webhook after validation.
+
+## Merge decision
+
+- [ ] Confirm the branch introduces no unacceptable dependency advisory.
+- [ ] Record Preview evidence and remaining limitations.
+- [ ] Obtain explicit owner approval before merging or changing Production.
+
+`main`, the current Production deployment, and the Production webhook remain
+unchanged until the final merge decision.

@@ -5,7 +5,6 @@
     "build": "next build",
     "build:aws": "next build && open-next build",
     "start": "next start",
-    "lab:cache": "node experiments/next15-cache-lab/run.mjs",
     "prettier": "prettier --write --ignore-unknown .",
     "prettier:check": "prettier --check --ignore-unknown .",
     "test:unit": "node --no-warnings --experimental-strip-types --test",
