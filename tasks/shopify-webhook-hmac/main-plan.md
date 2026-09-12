@@ -736,20 +736,27 @@ Update the plan/checklist with exact commits and evidence, run the clean-HEAD lo
   `ff7dbefa8f6382037a52144ac4adcce1497cd645`.
 - Local evidence: 22/22 tests, Prettier, TypeScript and production build passed;
   the unchanged dependency baseline remains 12 high and 11 moderate advisories.
-- Independent task reviews and the whole-branch review found no blocking issues.
+- Independent runtime task reviews and the whole-branch implementation review
+  found no blocking code issues; Preview evidence receives a separate focused
+  review before merge.
 
 ### Protected Preview acceptance
 
 - Vercel deployed exact runtime HEAD `ff7dbefa8f6382037a52144ac4adcce1497cd645`.
 - `SHOPIFY_WEBHOOK_SECRET` was present as an encrypted Preview and Production
   environment variable; values were not retrieved or printed.
-- Invalid HMAC verification returned HTTP 401 without invalidation.
-- Genuine Product update and Collection update events refreshed previously warmed
-  Preview pages on their first subsequent request.
-- Reverse events restored both original titles on the first subsequent request.
-- The owner confirmed deletion of the two temporary Shopify subscriptions.
-- The dedicated Vercel automation bypass was revoked, edge rejection was verified,
-  temporary local artifacts were removed and the clipboard was cleared.
+- Agent-observed direct verification produced HTTP 200 with `revalidated: true`;
+  invalid HMAC verification produced HTTP 401 without invalidation.
+- Agent-observed genuine Product update and Collection update effects refreshed
+  previously warmed Preview pages on their first subsequent request; reverse
+  events restored both original titles on the first subsequent request.
+- The owner attested that live Vercel Runtime Logs showed four genuine
+  `POST /api/revalidate` deliveries—Product and Collection forward and reverse—all
+  with HTTP 200, and no raw body, HMAC value, signing secret or bypass value.
+- The owner confirmed deletion of both temporary Shopify subscriptions while the
+  six Production subscriptions remained unchanged.
+- Every dedicated Vercel automation bypass was revoked, edge rejection was
+  verified, temporary local artifacts were removed and the clipboard was cleared.
 
 Production merge, genuine Production event verification and legacy Vercel
 variable retirement remain pending explicit owner approval.

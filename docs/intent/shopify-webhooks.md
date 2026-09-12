@@ -85,17 +85,29 @@ work only into the stable branch; do not merge its cache API into `main`.
 The main feature branch at `ff7dbefa8f6382037a52144ac4adcce1497cd645` passed
 local tests, formatting, TypeScript and a production build before deployment. A
 protected Vercel Preview of that exact commit was then verified with temporary
-manual Product update and Collection update subscriptions:
+manual Product update and Collection update subscriptions.
 
-- An invalid HMAC reached the application through the temporary protection bypass
-  and returned HTTP 401 without invalidation.
+Agent-observed evidence:
+
+- A direct signed request returned HTTP 200 with `revalidated: true`; an invalid
+  HMAC returned HTTP 401 without invalidation.
 - Previously warmed Product and Collection pages each reflected a reversible title
   change on the first request after the genuine Shopify event.
 - Both pages returned to their original titles on the first request after the
   reverse events.
-- The owner confirmed deletion of both temporary Shopify subscriptions.
-- The dedicated Vercel bypass was revoked, edge rejection was verified, and local
-  temporary credential artifacts were removed.
+- Every dedicated Vercel bypass was revoked, edge rejection was verified, and
+  local temporary credential artifacts and clipboard contents were removed.
+
+Owner-attested evidence from Shopify Admin and the live Vercel Runtime Logs view:
+
+- Genuine Product and Collection forward deliveries each produced
+  `POST /api/revalidate` with HTTP 200.
+- Genuine Product and Collection reverse deliveries each produced
+  `POST /api/revalidate` with HTTP 200.
+- The request entries exposed no raw body, HMAC value, signing secret or bypass
+  value.
+- Both temporary Shopify subscriptions were deleted; the six Production
+  subscriptions were left unchanged.
 
 No signing secret, HMAC, payload or bypass value was recorded. Production
 verification remains pending.
