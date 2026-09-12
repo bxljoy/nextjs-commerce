@@ -1,68 +1,56 @@
+import { unstable_cache } from "next/cache";
 import {
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag as cacheTag,
-} from "next/cache";
+  createSanityCachedAccessors,
+  type CacheFunction,
+  type SanityFetch,
+} from "./cache";
 import { isSanityConfigured, sanityClient } from "./client";
-import { pageQuery, pagesQuery, postQuery, postsQuery } from "./queries";
 import type { Page, Post } from "./types";
-import { SANITY_CACHE_TAGS } from "./webhook";
+
+const sanityFetch: SanityFetch = (query, params) =>
+  sanityClient.fetch(query, params);
+
+const cached = createSanityCachedAccessors(
+  sanityFetch,
+  unstable_cache as CacheFunction,
+);
 
 /**
- * Page and post accessors use coarse type tags so one signed webhook can cover
- * detail routes, indexes, metadata, slug changes, deletes, and sitemap reads.
+ * Configuration checks stay outside the persistent cache. Otherwise a build
+ * without Sanity environment variables could cache fallback values.
  */
 export async function getPage(slug: string): Promise<Page | undefined> {
-  "use cache";
-  cacheTag(SANITY_CACHE_TAGS.pages);
-  cacheLife("days");
-
   if (!isSanityConfigured) {
     console.log(`Skipping getPage for '${slug}' - Sanity not configured`);
     return undefined;
   }
 
-  return (
-    (await sanityClient.fetch<Page | null>(pageQuery, { slug })) ?? undefined
-  );
+  return cached.getPage(slug);
 }
 
 export async function getPages(): Promise<Page[]> {
-  "use cache";
-  cacheTag(SANITY_CACHE_TAGS.pages);
-  cacheLife("days");
-
   if (!isSanityConfigured) {
     console.log("Skipping getPages - Sanity not configured");
     return [];
   }
 
-  return (await sanityClient.fetch<Page[]>(pagesQuery)) ?? [];
+  return cached.getPages();
 }
 
 export async function getPost(slug: string): Promise<Post | undefined> {
-  "use cache";
-  cacheTag(SANITY_CACHE_TAGS.posts);
-  cacheLife("days");
-
   if (!isSanityConfigured) {
     console.log(`Skipping getPost for '${slug}' - Sanity not configured`);
     return undefined;
   }
 
-  return (
-    (await sanityClient.fetch<Post | null>(postQuery, { slug })) ?? undefined
-  );
+  return cached.getPost(slug);
 }
 
 export async function getPosts(): Promise<Post[]> {
-  "use cache";
-  cacheTag(SANITY_CACHE_TAGS.posts);
-  cacheLife("days");
-
   if (!isSanityConfigured) {
     console.log("Skipping getPosts - Sanity not configured");
     return [];
   }
 
-  return (await sanityClient.fetch<Post[]>(postsQuery)) ?? [];
+  return cached.getPosts();
 }
