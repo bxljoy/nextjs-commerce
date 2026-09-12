@@ -93,6 +93,24 @@ This policy is intentionally explicit at each call site. A cached transport
 default would make it too easy for a future cart operation to inherit shared
 caching accidentally.
 
+### Shopify webhook authentication
+
+Manually configured Shopify webhooks authenticate the exact raw request-body
+bytes with Shopify HMAC-SHA256 and the store-level signing secret from Shopify
+Admin's Webhooks page. `SHOPIFY_WEBHOOK_SECRET` is required; the Storefront
+access token is unrelated and cannot verify these deliveries. Missing or invalid
+signatures return HTTP 401 and cannot invalidate tags.
+
+Production webhook URLs contain no secret. A protected Preview may temporarily
+use only Vercel's short-lived `x-vercel-protection-bypass` automation query
+parameter, which is infrastructure access rather than application
+authentication and must be revoked after testing.
+
+The framework-independent verifier and its tests remain byte-identical to
+`main`. Only route wiring differs: this stable branch injects one-argument
+`revalidateTag(tag)`, while `main` retains its compatible canary adapter. The two
+maintained branches remain separate.
+
 ## Sanity implementation
 
 The application reads Sanity through `@sanity/client`, so it wraps each query
@@ -141,6 +159,12 @@ entries, cached misses, unpublishes/deletes, and both sides of a slug rename.
 
 Local automated checks cover:
 
+- Real Shopify signatures over exact raw body bytes, tampering and malformed
+  signature rejection, authentication-before-invalidation, topic selection,
+  duplicate delivery behavior, and HTTP error contracts.
+- Byte-for-byte identity of `lib/shopify/webhook.ts` and
+  `lib/shopify/webhook.test.ts` with `main`.
+- The stable route's one-argument `revalidateTag(tag)` adapter.
 - Real Sanity signature generation and verification against raw body text.
 - Missing/invalid signatures, malformed payloads, and unsupported types.
 - Page/post tag selection.
@@ -155,8 +179,8 @@ The production build classifies storefront content routes as dynamic (`ƒ`)
 because the root layout reads the cart cookie. That classification is expected;
 it does not prove or disprove reuse of the underlying Data Cache entries.
 
-On 2026-09-12, the owner manually verified the following against the Vercel
-Preview branch alias:
+On 2026-09-12, before the HMAC port, the owner manually verified the following
+cache and storefront behavior against the Vercel Preview branch alias:
 
 - Real Shopify product, collection, search, sort, cart, and mutation behavior.
 - Cart isolation across two browser sessions.
@@ -168,6 +192,9 @@ The Preview webhook used a separate Sanity signature secret plus a Vercel
 automation-bypass header because Deployment Protection otherwise rejected the
 request before Next.js. The temporary webhook was disabled after validation.
 These are owner-attested external checks, not an agent-recorded browser run.
+They do not constitute stable Shopify HMAC acceptance. The stable HMAC
+implementation is locally complete, while independent protected Preview
+verification remains pending.
 
 The stable dependency diff introduces no new advisory relative to `main` and
 removes 12 findings. Eleven transitive findings remain disclosed for separate
@@ -226,11 +253,11 @@ volume or invalidation cost makes that additional contract worthwhile.
 
 ### Would you merge this branch?
 
-It passed local gates, independent review, and owner-attested Vercel Preview
-checks, so it is technically a merge candidate. The owner chose not to merge it
-at this time, preserving both the experimental `main` baseline and this stable
-implementation as interview material. Remaining dependency advisories stay in a
-separate remediation scope.
+Not yet. The stable Shopify HMAC implementation has passed its local gates, but
+its independent protected Preview acceptance remains pending. After that gate,
+any merge belongs only on `learning/next15-stable-caching`; `main` and the stable
+branch remain separate maintained implementations. Remaining dependency
+advisories stay in a separate remediation scope.
 
 ## Official sources
 

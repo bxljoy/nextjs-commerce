@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed for owner review. No implementation code has been written.
+Approved, deployed and Production-verified on `main`. Main local, protected
+Preview and Production acceptance are complete. Stable local implementation is
+complete; stable protected Preview verification remains pending.
 
 The owner accepts the temporary Shopify cache-revalidation gap created by
 removing the legacy query-string secret from the manually configured webhook
