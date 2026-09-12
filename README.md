@@ -97,7 +97,7 @@ secret is not configured.
 pnpm install
 pnpm dev          # http://localhost:3000
 pnpm build        # production build
-pnpm test         # prettier --check
+pnpm test         # unit tests and prettier --check
 ```
 
 Two things worth knowing:

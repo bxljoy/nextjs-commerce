@@ -721,3 +721,35 @@ After the owner-approved rollback window, remove `SHOPIFY_REVALIDATION_SECRET` f
 - [ ] **Step 9: Record main-track completion**
 
 Update the plan/checklist with exact commits and evidence, run the clean-HEAD local verification once more if documentation changed, and leave `main` clean and synchronized with `origin/main`. Keep the local feature branch and its reviewed shared commits until the stable port is complete.
+
+---
+
+## Execution record
+
+### Main feature branch
+
+- Local implementation HEAD: `ff7dbefa8f6382037a52144ac4adcce1497cd645`.
+- Shared verifier commits: `0c7b9e73dd2e9907734d2eedbf61e5be7f15f39e`
+  and `0ad6784d8dd11c5103fe3fe66baa295bd35b1633`.
+- Main route adapter commit: `6606de0b8c56679821839fb0e0e69565d90c0681`.
+- Configuration/documentation commit:
+  `ff7dbefa8f6382037a52144ac4adcce1497cd645`.
+- Local evidence: 22/22 tests, Prettier, TypeScript and production build passed;
+  the unchanged dependency baseline remains 12 high and 11 moderate advisories.
+- Independent task reviews and the whole-branch review found no blocking issues.
+
+### Protected Preview acceptance
+
+- Vercel deployed exact runtime HEAD `ff7dbefa8f6382037a52144ac4adcce1497cd645`.
+- `SHOPIFY_WEBHOOK_SECRET` was present as an encrypted Preview and Production
+  environment variable; values were not retrieved or printed.
+- Invalid HMAC verification returned HTTP 401 without invalidation.
+- Genuine Product update and Collection update events refreshed previously warmed
+  Preview pages on their first subsequent request.
+- Reverse events restored both original titles on the first subsequent request.
+- The owner confirmed deletion of the two temporary Shopify subscriptions.
+- The dedicated Vercel automation bypass was revoked, edge rejection was verified,
+  temporary local artifacts were removed and the clipboard was cleared.
+
+Production merge, genuine Production event verification and legacy Vercel
+variable retirement remain pending explicit owner approval.

@@ -1,6 +1,6 @@
 # Intent: Authenticate Shopify webhooks with HMAC
 
-**Status:** Implemented locally; external Preview and Production acceptance pending.
+**Status:** Implemented and Preview-verified; Production acceptance pending.
 **Date:** 2026-09-12
 **Supersedes:** Query-string authentication for `POST /api/revalidate`
 
@@ -79,6 +79,26 @@ After the main implementation is accepted, port the shared verifier and tests to
 a feature branch based on `learning/next15-stable-caching`, add only the stable
 one-argument invalidation adapter, and repeat local and Preview gates. Merge that
 work only into the stable branch; do not merge its cache API into `main`.
+
+## Preview verification
+
+The main feature branch at `ff7dbefa8f6382037a52144ac4adcce1497cd645` passed
+local tests, formatting, TypeScript and a production build before deployment. A
+protected Vercel Preview of that exact commit was then verified with temporary
+manual Product update and Collection update subscriptions:
+
+- An invalid HMAC reached the application through the temporary protection bypass
+  and returned HTTP 401 without invalidation.
+- Previously warmed Product and Collection pages each reflected a reversible title
+  change on the first request after the genuine Shopify event.
+- Both pages returned to their original titles on the first request after the
+  reverse events.
+- The owner confirmed deletion of both temporary Shopify subscriptions.
+- The dedicated Vercel bypass was revoked, edge rejection was verified, and local
+  temporary credential artifacts were removed.
+
+No signing secret, HMAC, payload or bypass value was recorded. Production
+verification remains pending.
 
 ## Rollback
 
