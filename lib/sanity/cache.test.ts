@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as cacheModule from "./cache.ts";
-import { pageQuery, postsQuery } from "./queries.ts";
+import { pageQuery, pagesQuery, postQuery, postsQuery } from "./queries.ts";
 
 type CacheOptions = { revalidate: number; tags: string[] };
 type AsyncFunction = (...args: never[]) => Promise<unknown>;
@@ -23,13 +23,35 @@ type CachedAccessors = {
 type CreateSanityCachedAccessors = (
   fetch: SanityFetch,
   cache: CacheFunction,
+  namespace: string,
 ) => CachedAccessors;
+type CreateSanityCacheNamespace = (configuration: {
+  projectId: string;
+  dataset: string;
+  apiVersion: string;
+  perspective: string;
+  useCdn: boolean;
+}) => string;
 
-const createSanityCachedAccessors = (
+const { createSanityCachedAccessors, createSanityCacheNamespace } =
   cacheModule as unknown as {
     createSanityCachedAccessors?: CreateSanityCachedAccessors;
-  }
-).createSanityCachedAccessors;
+    createSanityCacheNamespace?: CreateSanityCacheNamespace;
+  };
+
+test("namespaces persistent entries by Sanity client configuration", () => {
+  assert.equal(typeof createSanityCacheNamespace, "function");
+  assert.equal(
+    createSanityCacheNamespace!({
+      projectId: "storefront",
+      dataset: "production",
+      apiVersion: "2024-01-01",
+      perspective: "published",
+      useCdn: false,
+    }),
+    "project=storefront;dataset=production;apiVersion=2024-01-01;perspective=published;cdn=false",
+  );
+});
 
 test("creates argument-aware cache boundaries with finite type tags", async () => {
   assert.equal(typeof createSanityCachedAccessors, "function");
@@ -51,7 +73,9 @@ test("creates argument-aware cache boundaries with finite type tags", async () =
     return null as T;
   };
 
-  const accessors = createSanityCachedAccessors!(fetch, cache);
+  const namespace =
+    "project=storefront;dataset=production;apiVersion=2024-01-01;perspective=published;cdn=false";
+  const accessors = createSanityCachedAccessors!(fetch, cache, namespace);
   await accessors.getPage("about");
   await accessors.getPage("contact");
   await accessors.getPosts();
@@ -63,19 +87,19 @@ test("creates argument-aware cache boundaries with finite type tags", async () =
   ]);
   assert.deepEqual(boundaries, [
     {
-      keyParts: ["sanity-page"],
+      keyParts: ["sanity-page", namespace, pageQuery],
       options: { revalidate: 3600, tags: ["pages"] },
     },
     {
-      keyParts: ["sanity-pages"],
+      keyParts: ["sanity-pages", namespace, pagesQuery],
       options: { revalidate: 3600, tags: ["pages"] },
     },
     {
-      keyParts: ["sanity-post"],
+      keyParts: ["sanity-post", namespace, postQuery],
       options: { revalidate: 3600, tags: ["posts"] },
     },
     {
-      keyParts: ["sanity-posts"],
+      keyParts: ["sanity-posts", namespace, postsQuery],
       options: { revalidate: 3600, tags: ["posts"] },
     },
   ]);

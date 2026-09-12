@@ -12,6 +12,7 @@ import {
   getShopifyCacheOptions,
   type ShopifyCacheOptions,
 } from "./cache-policy";
+import { createShopifyRequestInit } from "./request";
 import {
   addToCartMutation,
   createCartMutation,
@@ -77,20 +78,10 @@ export async function shopifyFetch<T>({
       throw new Error("SHOPIFY_STORE_DOMAIN environment variable is not set");
     }
 
-    const result = await fetch(endpoint, {
-      method: "POST",
-      cache,
-      next,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": key,
-        ...headers,
-      },
-      body: JSON.stringify({
-        ...(query && { query }),
-        ...(variables && { variables }),
-      }),
-    });
+    const result = await fetch(
+      endpoint,
+      createShopifyRequestInit({ cache, headers, next, query, variables }, key),
+    );
 
     const body = await result.json();
 

@@ -4,7 +4,11 @@ import {
   type CacheFunction,
   type SanityFetch,
 } from "./cache";
-import { isSanityConfigured, sanityClient } from "./client";
+import {
+  isSanityConfigured,
+  SANITY_CACHE_NAMESPACE,
+  sanityClient,
+} from "./client";
 import type { Page, Post } from "./types";
 
 const sanityFetch: SanityFetch = (query, params) =>
@@ -13,6 +17,7 @@ const sanityFetch: SanityFetch = (query, params) =>
 const cached = createSanityCachedAccessors(
   sanityFetch,
   unstable_cache as CacheFunction,
+  SANITY_CACHE_NAMESPACE,
 );
 
 /**
