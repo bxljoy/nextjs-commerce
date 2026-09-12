@@ -34,8 +34,9 @@ Cache, because neither client routes through `fetch` in a way Next can see.
 
 **Invalidation differs by service:**
 
-- **Shopify** — webhooks POST to `/api/revalidate`, which checks a shared
-  secret and calls `revalidateTag` for `products` or `collections`.
+- **Shopify** — webhooks POST to `/api/revalidate`, which verifies Shopify's
+  HMAC over the exact request body and calls `revalidateTag` for `products` or
+  `collections`.
 - **Sanity** — signed webhooks POST to `/api/revalidate/sanity`. Page and post
   queries carry separate coarse tags; a create, update, unpublish or delete
   expires the matching tag so the next visit blocks for fresh published
@@ -53,7 +54,7 @@ Copy `.env.example` to `.env` and fill it in.
 | `SHOPIFY_STORE_DOMAIN`            | yes      | `your-store.myshopify.com` — no protocol, no brackets |
 | `SHOPIFY_STOREFRONT_ACCESS_TOKEN` | yes      | **public** Storefront token (see below)               |
 | `SHOPIFY_API_VERSION`             | no       | defaults to the value pinned in `lib/constants.ts`    |
-| `SHOPIFY_REVALIDATION_SECRET`     | no       | any random string; only used by the webhook           |
+| `SHOPIFY_WEBHOOK_SECRET`          | yes      | store-level signing value for manual Admin webhooks   |
 | `SANITY_PROJECT_ID`               | yes      | from sanity.io/manage                                 |
 | `SANITY_DATASET`                  | yes      | `production`                                          |
 | `SANITY_REVALIDATE_SECRET`        | updates  | 32+ random characters; shared with the Sanity webhook |
@@ -71,6 +72,24 @@ Headless channel also hands you a _private_ token; that one authenticates via
 hardcoded handle — `hidden-homepage-featured-items` (needs 3+ products) and
 `hidden-homepage-carousel`. Without them those sections render empty rather
 than erroring. Navigation is defined in `lib/menus.ts`, not Shopify.
+
+### Shopify webhook configuration
+
+`SHOPIFY_WEBHOOK_SECRET` is required for Shopify cache revalidation. For webhooks
+created manually in Shopify Admin, use the store-level signing value shown on
+Shopify's Webhooks page. Neither the Storefront access token nor an app client
+secret is a substitute for that value.
+
+The Production webhook URL is
+`https://nextjs-commerce-sigma-hazel-95.vercel.app/api/revalidate`, with no
+application secret in its query. A subscription targeting a protected Preview
+may temporarily use Vercel's automation-bypass query parameter. That bypass is
+infrastructure authentication and is separate from Shopify HMAC authentication;
+remove the temporary subscription and revoke its bypass after testing.
+
+The endpoint returns HTTP 200 for a valid supported product or collection topic,
+HTTP 401 for a missing or invalid signature, and HTTP 500 when the server signing
+secret is not configured.
 
 ## Local development
 
@@ -118,9 +137,10 @@ production webhook and secret are configured.
   misconfigured deploy fails silently.
 - `/[page]` returns HTTP 200 for a missing page instead of 404. It is a Partial
   Prerender route, so the static shell flushes before `notFound()` runs.
-- The Shopify webhook endpoint always answers 200, including on a rejected
-  secret, so Shopify does not retry forever. The Sanity endpoint instead uses
-  real 400/401/500 statuses and Sanity's signed request verification.
+- The Shopify webhook endpoint returns real 401 and 500 responses for
+  authentication and configuration failures, so Shopify can surface and retry
+  genuine failed deliveries. The Sanity endpoint also uses real 400/401/500
+  statuses and Sanity's signed request verification.
 - **The two pinned API versions need opposite habits.** `SHOPIFY_API_VERSION`
   expires: Shopify supports a version for about twelve months, then quietly
   serves a different one than the one named, so it needs bumping periodically.
@@ -130,9 +150,11 @@ production webhook and secret are configured.
 
 ## Decisions
 
-`docs/intent/sanity-cms.md` records why the CMS is scoped the way it is,
-including what was deliberately left out and one piece of reasoning that turned
-out to be wrong.
+- `docs/intent/shopify-webhooks.md` records the Shopify webhook authentication,
+  rollout and rollback decisions.
+- `docs/intent/sanity-cms.md` records why the CMS is scoped the way it is,
+  including what was deliberately left out and one piece of reasoning that
+  turned out to be wrong.
 
 ## License
 
