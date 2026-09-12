@@ -1,6 +1,6 @@
 # Intent: Sanity.io as CMS
 
-**Status:** Implemented and deployed. Revised 2026-09-10 — see Revisions.
+**Status:** Implemented and deployed on `main`. The 2026-09-12 learning branch variation below is not deployed.
 **Date:** 2026-09-03
 **Supersedes:** Shopify-backed pages (`getPage` / `getPages`)
 
@@ -77,10 +77,33 @@ Two exist at the time of writing:
 - Rich text arrives as **Portable Text** (structured JSON), not HTML. The renderer
   component is the main piece of work in this migration — `<Prose html={...} />`
   cannot consume it.
-- Verify `next-sanity` and `@portabletext/react` APIs against live docs before
-  implementing; this area moves quickly.
+- Verify Sanity integration packages and `@portabletext/react` APIs against live
+  docs before implementing; this area moves quickly.
 
 ## Revisions
+
+### 2026-09-12 — stable Next.js 15 comparison branch
+
+**Scope:** `learning/next15-stable-caching` is an interview-learning branch, not a
+new production decision. `main` remains the deployed PPR/`use cache` baseline.
+
+**Cache mapping:** Sanity reads move from `use cache` to argument-keyed
+`unstable_cache` wrappers with the same coarse page/post tags and published-only
+client. Because the root layout reads the cart cookie, stable Next.js renders the
+storefront dynamically while still reusing this Data Cache. A separate local
+fixture demonstrates genuine ISR.
+
+**Webhook package:** installed `next-sanity@13.3.4` requires Next.js 16 and was
+used only for `parseBody`. This branch uses the official underlying
+`@sanity/webhook` toolkit directly: preserve raw-body signature validation, JSON
+parsing, the three-second consistency wait and the existing endpoint contract.
+Stable Next.js 15 uses one-argument `revalidateTag` rather than the canary cache
+profile overload described in the 2026-09-10 production revision.
+
+**Evidence and limits:** unit tests use real generated signatures, and the cache
+lab verifies tag invalidation. A real Vercel Preview event and browser Router
+Cache experiment remain separate checks before claiming external end-to-end
+coverage. See `docs/learning/next15-caching-comparison.md`.
 
 ### 2026-09-10 — signed webhook replaces `SanityLive`
 

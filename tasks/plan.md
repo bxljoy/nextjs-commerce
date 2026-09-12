@@ -1,6 +1,6 @@
 # Plan: Stable Next.js 15 caching comparison
 
-Status: ready for review; documentation only so far.
+Status: local implementation and automated cache lab complete; browser and Vercel Preview checks remain.
 
 Spec: `docs/specs/next15-stable-caching.md`.
 Branch: `learning/next15-stable-caching`.
@@ -16,14 +16,13 @@ Previous completed plan: `tasks/archive/sanity-webhook/plan.md`.
 - Likely files: package manifest, lockfile, comparison notes.
 - Gate: no version changes until a compatible version and migration mapping are recorded. Ask if supporting dependency changes are needed.
 
-### Compatibility findings — awaiting dependency approval
+### Compatibility findings and result
 
-- Registry resolves stable Next.js 15 to `15.5.25`. Its declared peers accept the current React 19.0.0 and Node 22.15.0; installed Geist and OpenNext peer ranges also accept it. Advisory verification remains outstanding.
-- Installed `next-sanity@13.3.4` requires Next.js 16 and React 19.2.3+. Version 12 also requires Next.js 16; version 11 supports Next.js 15 but requires Sanity client 7, rather than the installed client 8.
-- The application's only remaining next-sanity import is `parseBody` in the Sanity webhook route.
-- Proposed minimal adjustment: replace next-sanity with a direct dependency on the official `@sanity/webhook@4.0.4` toolkit (already present transitively), keep client 8, and implement raw-body verification/JSON parsing with the existing consistency wait. No custom signature algorithm. Require real signed-payload regression tests.
-- This supporting dependency change needs owner approval under the spec. No runtime code, package manifest or lockfile has been changed.
-- Baseline `pnpm test`: seven tests and formatting passed. No claim of migration completion or security clearance.
+- Registry resolved stable Next.js 15 to `15.5.25`. Its declared peers accept React 19.0.0 and Node 22.15.0; installed Geist and OpenNext peer ranges also accept it. Next.js `15.5.24` contains the two cited critical security fixes, so `15.5.25` includes them.
+- Installed `next-sanity@13.3.4` required Next.js 16 and React 19.2.3+. Version 12 also required Next.js 16; version 11 supported Next.js 15 but required Sanity client 7 rather than the installed client 8.
+- The owner approved replacing that single wrapper use with direct `@sanity/webhook@4.0.4`. The implementation retains raw-body validation and the consistency wait, with real signature tests; `@sanity/client@8.4.0` remains.
+- Baseline `pnpm test` had seven passing tests. The stable branch now has twelve passing tests plus a passing production cache lab, typecheck and build.
+- `pnpm audit --audit-level high` remains non-zero: 11 findings (7 high, 4 moderate) in transitive sharp/PostCSS/nanoid paths. This branch does not run blanket audit fixes; dependency remediation remains separate.
 
 ## 2. Specify regression tests before the coordinated migration
 

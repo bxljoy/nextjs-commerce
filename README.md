@@ -26,11 +26,17 @@ Two data layers, deliberately kept apart. Every route reads from exactly one.
 ```
 lib/shopify/    hand-rolled GraphQL client — the Storefront API is plain
                 GraphQL over HTTP, so there is no SDK to lean on
-lib/sanity/     GROQ via @sanity/client, with explicit cache tags
+lib/sanity/     GROQ via @sanity/client, cached through unstable_cache
 ```
 
-Both cache with Next's `"use cache"` directive rather than the fetch Data
-Cache, because neither client routes through `fetch` in a way Next can see.
+This learning branch uses stable Next.js 15 cache APIs explicitly:
+
+- Shopify catalog GraphQL calls use the fetch Data Cache with
+  `cache: "force-cache"`, a one-hour TTL and product/collection tags.
+- Sanity query functions use `unstable_cache` with a one-hour TTL. Function
+  arguments distinguish detail entries and coarse page/post tags drive webhooks.
+- Cart reads and every mutation use `cache: "no-store"`; cart cookies are read
+  outside shared cache boundaries.
 
 **Invalidation differs by service:**
 
@@ -78,17 +84,18 @@ than erroring. Navigation is defined in `lib/menus.ts`, not Shopify.
 pnpm install
 pnpm dev          # http://localhost:3000
 pnpm build        # production build
-pnpm test         # prettier --check
+pnpm test         # unit tests + formatting
+pnpm lab:cache    # deterministic production-mode caching experiments
 ```
 
-Two things worth knowing:
+Cache conclusions should come from a production build, not development HMR.
+Next.js can reuse server fetches across HMR even when they specify `no-store`.
+Shopify and Sanity webhooks also cannot reach `localhost` directly; expose the
+signed endpoint through a tunnel only when deliberately testing webhooks.
 
-- **`/sitemap.xml` returns 500 in `pnpm dev`.** A Turbopack RSC bug in this
-  Next canary, unrelated to app code — it reproduces with the CMS layer removed
-  entirely. Production is fine.
-- **Cached data survives a page refresh, not a server restart.** Shopify and
-  Sanity webhooks cannot reach `localhost` directly. Restart the dev server, or
-  expose `/api/revalidate/sanity` through a tunnel and send a signed webhook.
+`experiments/next15-cache-lab/` demonstrates persistent Data Cache reuse,
+time-based stale-while-revalidate, tag invalidation, two-cookie cart isolation,
+and Full Route Cache/ISR failure recovery without changing the storefront.
 
 ## Vercel preview webhook test
 
@@ -116,11 +123,13 @@ production webhook and secret are configured.
 - Missing Sanity or Shopify config makes routes render empty rather than throw,
   via guards in each data layer. Convenient locally, but it means a
   misconfigured deploy fails silently.
-- `/[page]` returns HTTP 200 for a missing page instead of 404. It is a Partial
-  Prerender route, so the static shell flushes before `notFound()` runs.
+- The root layout reads the cart cookie. Without PPR that makes storefront
+  routes dynamically rendered, although their Shopify/Sanity data can still be
+  reused from the Data Cache. The isolated cache lab demonstrates genuine ISR.
 - The Shopify webhook endpoint always answers 200, including on a rejected
   secret, so Shopify does not retry forever. The Sanity endpoint instead uses
-  real 400/401/500 statuses and Sanity's signed request verification.
+  real 400/401/500 statuses and verifies the untouched raw request body with
+  the official `@sanity/webhook` toolkit.
 - **The two pinned API versions need opposite habits.** `SHOPIFY_API_VERSION`
   expires: Shopify supports a version for about twelve months, then quietly
   serves a different one than the one named, so it needs bumping periodically.
@@ -132,7 +141,8 @@ production webhook and secret are configured.
 
 `docs/intent/sanity-cms.md` records why the CMS is scoped the way it is,
 including what was deliberately left out and one piece of reasoning that turned
-out to be wrong.
+out to be wrong. `docs/learning/next15-caching-comparison.md` records the stable
+cache experiment, measured results and interview explanation.
 
 ## License
 
