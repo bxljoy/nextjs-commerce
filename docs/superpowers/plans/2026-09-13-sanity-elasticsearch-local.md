@@ -623,7 +623,7 @@ git commit -m "feat: add atomic Sanity search synchronization"
 - Produces: `buildSearchLabPosts()` with exactly 100 documents, `digestOwnedPost(post)`, `planSeed(expected, existing)`, and dry-run/apply seed CLI.
 - Consumes: actual Studio schema evidence and dedicated write-token configuration.
 
-- [ ] **Step 1: Stop and verify the actual Studio schema**
+- [x] **Step 1: Stop and verify the actual Studio schema**
 
 Obtain the source or owner-attested definitions for `post`, `slug`, Portable Text,
 `publishedAt`, excerpt and SEO fields. Record compatibility in the learning doc.
@@ -633,7 +633,7 @@ writing fixtures. Do not infer write validity from the five readable documents.
 Confirm `.env` contains a separately created `SANITY_SEARCH_LAB_WRITE_TOKEN`
 without printing it. Do not use the globally authenticated Sanity CLI token.
 
-- [ ] **Step 2: Write failing fixture tests**
+- [x] **Step 2: Write failing fixture tests**
 
 Require exactly 100 unique documents with IDs `searchLab.post.001` through
 `searchLab.post.100`, unique `search-lab-` slugs, `_type: "post"`, valid dates,
@@ -645,7 +645,7 @@ content modeling, search relevance, accessibility, testing, observability,
 performance, security, deployment and API design. Include controlled term pairs
 for `distributed cache`, `content search`, stemming and title-versus-body boosts.
 
-- [ ] **Step 3: Write failing ownership/seed-plan tests**
+- [x] **Step 3: Write failing ownership/seed-plan tests**
 
 Cover empty target, identical rerun, conflicting ID, conflicting slug, partially
 completed identical run and malformed existing documents. A prefix match alone
@@ -662,7 +662,7 @@ export type SeedPlan = {
 
 Any conflict blocks the entire apply phase.
 
-- [ ] **Step 4: Implement fixtures and dry-run-first seed CLI**
+- [x] **Step 4: Implement fixtures and dry-run-first seed CLI**
 
 Create deterministic original text with at least three Portable Text paragraphs
 per post and varied excerpts/body length. `seed.ts`:
@@ -675,7 +675,7 @@ per post and varied excerpts/body length. `seed.ts`:
 6. writes a local recovery report of successfully created IDs after each batch;
 7. never patches or overwrites a document.
 
-- [ ] **Step 5: Verify fixtures without writing Sanity**
+- [x] **Step 5: Verify fixtures without writing Sanity**
 
 ```bash
 pnpm test:unit -- fixtures/search/posts.test.ts scripts/search/content-ownership.test.ts
@@ -687,7 +687,7 @@ pnpm exec tsc --noEmit
 Expected dry-run: 100 proposed, zero writes, no conflicts. If the dataset changes
 before apply, rerun and review the dry-run.
 
-- [ ] **Step 6: Commit the reviewed seed tooling, not live content state**
+- [x] **Step 6: Commit the reviewed seed tooling, not live content state**
 
 ```bash
 git add fixtures/search/posts.ts fixtures/search/posts.test.ts scripts/search/content-ownership.ts scripts/search/content-ownership.test.ts scripts/search/seed.ts
