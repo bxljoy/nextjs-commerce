@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -14,6 +14,11 @@ import {
   type CleanupObservedDocument,
 } from "./cleanup-content.ts";
 
+type FakeRevisionPatch = {
+  ifRevisionId(revision: string): FakeRevisionPatch;
+  unset(paths: string[]): FakeRevisionPatch;
+};
+
 function fixture(index: number): SanitySeedPost {
   const post = buildSearchLabPosts()[index];
   assert.ok(post);
@@ -23,17 +28,36 @@ function fixture(index: number): SanitySeedPost {
 function observed(
   post: SanitySeedPost,
   incomingReferenceIds: readonly string[] = [],
+  revision = `rev-${post._id}`,
 ): CleanupObservedDocument {
-  return { ...structuredClone(post), incomingReferenceIds };
+  return { ...structuredClone(post), _rev: revision, incomingReferenceIds };
 }
 
-test("plans only exact, unchanged, unreferenced manifest documents as eligible", () => {
+test("plans only recorded, exact, unchanged, unreferenced manifest documents as eligible", () => {
   const expected = [fixture(0), fixture(1)];
 
-  assert.deepEqual(planCleanup(expected, [observed(expected[0]!)]), {
-    eligibleIds: [expected[0]!._id],
-    missingIds: [expected[1]!._id],
-    blocked: [],
+  assert.deepEqual(
+    planCleanup(expected, [observed(expected[0]!)], [expected[0]!._id]),
+    {
+      eligibleIds: [expected[0]!._id],
+      missingIds: [expected[1]!._id],
+      blocked: [],
+    },
+  );
+});
+
+test("blocks an identical pre-existing manifest document without seed provenance", () => {
+  const expected = [fixture(0)];
+
+  assert.deepEqual(planCleanup(expected, [observed(expected[0]!)], []), {
+    eligibleIds: [],
+    missingIds: [],
+    blocked: [
+      {
+        id: expected[0]!._id,
+        reason: "document is not recorded as created by this search lab",
+      },
+    ],
   });
 });
 
@@ -50,7 +74,11 @@ test("blocks changed, unexpected, draft-paired, and referenced documents", () =>
   unexpected._id = "searchLab.post.999";
 
   assert.deepEqual(
-    planCleanup(expected, [changed, draft, referenced, unexpected]),
+    planCleanup(
+      expected,
+      [changed, draft, referenced, unexpected],
+      expected.map((post) => post._id),
+    ),
     {
       eligibleIds: [],
       missingIds: [],
@@ -81,11 +109,14 @@ test("a draft pair blocks an otherwise identical published document", () => {
     _id: `drafts.${expected[0]!._id}`,
   };
 
-  assert.deepEqual(planCleanup(expected, [published, draft]), {
-    eligibleIds: [],
-    missingIds: [],
-    blocked: [{ id: expected[0]!._id, reason: "draft pair exists" }],
-  });
+  assert.deepEqual(
+    planCleanup(expected, [published, draft], [expected[0]!._id]),
+    {
+      eligibleIds: [],
+      missingIds: [],
+      blocked: [{ id: expected[0]!._id, reason: "draft pair exists" }],
+    },
+  );
 });
 
 test("rejects prefix-only, wildcard, duplicate, and noncanonical manifest IDs", () => {
@@ -107,6 +138,45 @@ test("rejects prefix-only, wildcard, duplicate, and noncanonical manifest IDs", 
     () => planCleanup([valid, structuredClone(valid)], []),
     /duplicate/,
   );
+});
+
+test("validates Task 7 seed provenance against the cleanup target", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "search-cleanup-provenance-"));
+  await mkdir(join(cwd, ".search-lab"));
+  await writeFile(
+    join(cwd, ".search-lab", "seed-recovery.json"),
+    JSON.stringify({
+      projectId: "another-project",
+      dataset: "production",
+      createdIds: [fixture(0)._id],
+    }),
+  );
+
+  try {
+    await assert.rejects(
+      runSearchContentCleanup({
+        argv: ["--dry-run"],
+        cwd,
+        env: {
+          SANITY_PROJECT_ID: "project123",
+          SANITY_DATASET: "production",
+          SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+        },
+        client: {
+          async fetch() {
+            throw new Error("invalid seed provenance must block before fetch");
+          },
+          transaction() {
+            throw new Error("invalid seed provenance must not mutate");
+          },
+        },
+        log: () => {},
+      }),
+      /seed recovery report target does not match/,
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
 });
 
 test("requires a separate exact apply confirmation and defaults to dry-run", () => {
@@ -160,6 +230,9 @@ test("dry-run reports counts and IDs while performing zero mutations", async () 
       },
     },
     log: (message) => logs.push(message),
+    readSeedRecoveryReport: async () =>
+      expected.slice(0, 2).map((post) => post._id),
+    readRecoveryReport: async () => ({ completedIds: [], pendingBatch: null }),
     writeRecoveryReport: async () => {
       throw new Error("dry-run must not write a recovery report");
     },
@@ -213,6 +286,17 @@ test("apply performs a fresh read and deletes explicit eligible IDs in bounded t
       transaction() {
         const ids: string[] = [];
         return {
+          patch(_id, build) {
+            build({
+              ifRevisionId() {
+                return this;
+              },
+              unset() {
+                return this;
+              },
+            });
+            return this;
+          },
           delete(id) {
             assert.match(id, /^searchLab\.post\.\d{3}$/);
             ids.push(id);
@@ -225,9 +309,12 @@ test("apply performs a fresh read and deletes explicit eligible IDs in bounded t
       },
     },
     log: () => {},
-    readRecoveryReport: async () => [],
-    writeRecoveryReport: async (deletedIds) => {
-      reportSizes.push(deletedIds.length);
+    readSeedRecoveryReport: async () =>
+      expected.slice(0, 41).map((post) => post._id),
+    readRecoveryReport: async () => ({ completedIds: [], pendingBatch: null }),
+    writeRecoveryReport: async (state) => {
+      if (state.pendingBatch === null)
+        reportSizes.push(state.completedIds.length);
     },
   });
 
@@ -268,10 +355,182 @@ test("apply refuses deletion when fresh eligibility differs from confirmation", 
         },
       },
       log: () => {},
+      readSeedRecoveryReport: async () =>
+        expected.slice(0, 2).map((post) => post._id),
+      readRecoveryReport: async () => ({
+        completedIds: [],
+        pendingBatch: null,
+      }),
     }),
     /fresh cleanup eligibility changed/,
   );
   assert.equal(fetchCount, 2);
+});
+
+test("apply uses the fresh revision as an atomic delete precondition", async () => {
+  const expected = [fixture(0)];
+  let actualRevision = "rev-before-edit";
+  let queuedDelete = false;
+
+  await assert.rejects(
+    runSearchContentCleanup({
+      argv: ["--apply", "--confirm-owned-count=1"],
+      env: {
+        SANITY_PROJECT_ID: "project123",
+        SANITY_DATASET: "production",
+        SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+      },
+      client: {
+        async fetch() {
+          return [observed(expected[0]!, [], actualRevision)];
+        },
+        transaction() {
+          let requiredRevision: string | undefined;
+          return {
+            patch(
+              _id: string,
+              build: (patch: FakeRevisionPatch) => FakeRevisionPatch,
+            ) {
+              const patch = {
+                ifRevisionId(revision: string) {
+                  requiredRevision = revision;
+                  return this;
+                },
+                unset(_paths: string[]) {
+                  return this;
+                },
+              };
+              build(patch);
+              return this;
+            },
+            delete() {
+              queuedDelete = true;
+              actualRevision = "rev-edited-after-fresh-read";
+              return this;
+            },
+            async commit() {
+              if (requiredRevision === undefined) {
+                throw new Error("revision precondition missing");
+              }
+              if (requiredRevision !== actualRevision) {
+                throw new Error("revision conflict");
+              }
+            },
+          };
+        },
+      },
+      log: () => {},
+      readSeedRecoveryReport: async () => [expected[0]!._id],
+      readRecoveryReport: async () => ({
+        completedIds: [],
+        pendingBatch: null,
+      }),
+      writeRecoveryReport: async () => {},
+    }),
+    /revision conflict/,
+  );
+
+  assert.equal(queuedDelete, true);
+  assert.equal(actualRevision, "rev-edited-after-fresh-read");
+});
+
+test("journals a pending batch before commit and retains it if completion persistence fails", async () => {
+  const expected = [fixture(0)];
+  const events: string[] = [];
+  let durableState: unknown;
+
+  await assert.rejects(
+    runSearchContentCleanup({
+      argv: ["--apply", "--confirm-owned-count=1"],
+      env: {
+        SANITY_PROJECT_ID: "project123",
+        SANITY_DATASET: "production",
+        SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+      },
+      client: {
+        async fetch() {
+          return [observed(expected[0]!)];
+        },
+        transaction() {
+          return {
+            patch() {
+              return this;
+            },
+            delete() {
+              return this;
+            },
+            async commit() {
+              events.push("commit");
+            },
+          };
+        },
+      },
+      log: () => {},
+      readSeedRecoveryReport: async () => [expected[0]!._id],
+      readRecoveryReport: async () => ({
+        completedIds: [],
+        pendingBatch: null,
+      }),
+      writeRecoveryReport: async (state: {
+        completedIds: readonly string[];
+        pendingBatch: unknown;
+      }) => {
+        if (state.pendingBatch !== null) {
+          events.push("write pending");
+          durableState = structuredClone(state);
+          return;
+        }
+        events.push("write complete");
+        throw new Error("simulated completion journal failure");
+      },
+    }),
+    /simulated completion journal failure/,
+  );
+
+  assert.deepEqual(events, ["write pending", "commit", "write complete"]);
+  assert.deepEqual(durableState, {
+    completedIds: [],
+    pendingBatch: [
+      { id: expected[0]!._id, revision: `rev-${expected[0]!._id}` },
+    ],
+  });
+});
+
+test("reconciles a pending journal when every remotely deleted ID is missing", async () => {
+  const expected = [fixture(0)];
+  const persistedStates: unknown[] = [];
+  const result = await runSearchContentCleanup({
+    argv: ["--apply", "--confirm-owned-count=0"],
+    env: {
+      SANITY_PROJECT_ID: "project123",
+      SANITY_DATASET: "production",
+      SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+    },
+    client: {
+      async fetch() {
+        return [];
+      },
+      transaction() {
+        throw new Error("reconciled missing IDs must not create a transaction");
+      },
+    },
+    log: () => {},
+    readSeedRecoveryReport: async () => [expected[0]!._id],
+    readRecoveryReport: async () => ({
+      completedIds: [],
+      pendingBatch: [
+        { id: expected[0]!._id, revision: `rev-${expected[0]!._id}` },
+      ],
+    }),
+    writeRecoveryReport: async (state: unknown) => {
+      persistedStates.push(structuredClone(state));
+    },
+  });
+
+  assert.deepEqual(result.deletedIds, []);
+  assert.deepEqual(persistedStates, [
+    { completedIds: [expected[0]!._id], pendingBatch: null },
+  ]);
 });
 
 test("a partial apply persists completed IDs and safely resumes", async () => {
@@ -290,6 +549,21 @@ test("a partial apply persists completed IDs and safely resumes", async () => {
     transaction() {
       const ids: string[] = [];
       return {
+        patch(
+          _id: string,
+          build: (patch: FakeRevisionPatch) => FakeRevisionPatch,
+        ) {
+          const patch = {
+            ifRevisionId(_revision: string) {
+              return this;
+            },
+            unset(_paths: string[]) {
+              return this;
+            },
+          };
+          build(patch);
+          return this;
+        },
         delete(id: string) {
           ids.push(id);
           return this;
@@ -318,6 +592,7 @@ test("a partial apply persists completed IDs and safely resumes", async () => {
     },
     client,
     log: () => {},
+    readSeedRecoveryReport: async () => expected.map((post) => post._id),
   };
 
   try {
@@ -329,11 +604,20 @@ test("a partial apply persists completed IDs and safely resumes", async () => {
 
     const partialReport = JSON.parse(
       await readFile(join(cwd, ".search-lab", "cleanup-recovery.json"), "utf8"),
-    ) as { deletedIds: string[] };
+    ) as {
+      completedIds: string[];
+      pendingBatch: { id: string; revision: string }[] | null;
+    };
     assert.deepEqual(
-      partialReport.deletedIds,
+      partialReport.completedIds,
       expected.slice(0, 20).map((post) => post._id),
     );
+    assert.deepEqual(partialReport.pendingBatch, [
+      {
+        id: expected[20]!._id,
+        revision: `rev-${expected[20]!._id}`,
+      },
+    ]);
 
     failSecondCommit = false;
     commitCount = 0;
@@ -346,11 +630,12 @@ test("a partial apply persists completed IDs and safely resumes", async () => {
 
     const finalReport = JSON.parse(
       await readFile(join(cwd, ".search-lab", "cleanup-recovery.json"), "utf8"),
-    ) as { deletedIds: string[] };
+    ) as { completedIds: string[]; pendingBatch: unknown };
     assert.deepEqual(
-      finalReport.deletedIds,
+      finalReport.completedIds,
       expected.map((post) => post._id),
     );
+    assert.equal(finalReport.pendingBatch, null);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

@@ -8,6 +8,7 @@ import {
   type SanitySeedPost,
 } from "../../fixtures/search/posts.ts";
 import { digestOwnedPost } from "./content-ownership.ts";
+import { readSeedRecoveryReport } from "./seed.ts";
 
 const SANITY_API_VERSION = "2024-01-01";
 const DELETE_BATCH_SIZE = 20;
@@ -17,6 +18,7 @@ const EXACT_MANIFEST_ID = /^searchLab\.post\.\d{3}$/;
 const cleanupCandidatesQuery = `
   *[_id in $lookupIds]{
     _id,
+    _rev,
     _type,
     title,
     slug,
@@ -41,7 +43,16 @@ export type CleanupPlan = {
   blocked: CleanupBlock[];
 };
 
+type CleanupRevisionPatch = {
+  ifRevisionId(revision: string): CleanupRevisionPatch;
+  unset(paths: string[]): CleanupRevisionPatch;
+};
+
 type CleanupTransaction = {
+  patch(
+    id: string,
+    build: (patch: CleanupRevisionPatch) => CleanupRevisionPatch,
+  ): CleanupTransaction;
   delete(id: string): CleanupTransaction;
   commit(): Promise<unknown>;
 };
@@ -60,14 +71,20 @@ type CleanupConfig = {
   writeToken: string;
 };
 
+export type CleanupRecoveryState = {
+  completedIds: string[];
+  pendingBatch: { id: string; revision: string }[] | null;
+};
+
 type RunSearchContentCleanupDependencies = {
   argv?: readonly string[];
   cwd?: string;
   env?: Record<string, string | undefined>;
   client?: CleanupClient;
   log?: (message: string) => void;
-  readRecoveryReport?: () => Promise<readonly string[]>;
-  writeRecoveryReport?: (deletedIds: readonly string[]) => Promise<void>;
+  readSeedRecoveryReport?: () => Promise<readonly string[]>;
+  readRecoveryReport?: () => Promise<CleanupRecoveryState>;
+  writeRecoveryReport?: (state: CleanupRecoveryState) => Promise<void>;
 };
 
 type CleanupRunResult = CleanupPlan & {
@@ -152,10 +169,16 @@ export function parseCleanupOptions(
   return { apply: true, confirmedOwnedCount };
 }
 
-export function planCleanup(
+type PlannedCleanup = {
+  plan: CleanupPlan;
+  revisionsById: ReadonlyMap<string, string>;
+};
+
+function buildCleanupPlan(
   expected: readonly SanitySeedPost[],
   observedDocuments: readonly unknown[],
-): CleanupPlan {
+  labCreatedIds: readonly string[],
+): PlannedCleanup {
   const expectedById = new Map<string, SanitySeedPost>();
   for (const post of expected) {
     assertExactManifestId(post._id);
@@ -163,6 +186,18 @@ export function planCleanup(
       throw new Error(`duplicate manifest ID: ${post._id}`);
     }
     expectedById.set(post._id, post);
+  }
+
+  const labCreatedIdSet = new Set<string>();
+  for (const id of labCreatedIds) {
+    assertExactManifestId(id);
+    if (!expectedById.has(id)) {
+      throw new Error(`lab-created ID is not in the manifest: ${id}`);
+    }
+    if (labCreatedIdSet.has(id)) {
+      throw new Error(`duplicate lab-created ID: ${id}`);
+    }
+    labCreatedIdSet.add(id);
   }
 
   const observedById = new Map<string, unknown>();
@@ -186,12 +221,20 @@ export function planCleanup(
   const eligibleIds: string[] = [];
   const missingIds: string[] = [];
   const blocked: CleanupBlock[] = [];
+  const revisionsById = new Map<string, string>();
 
   for (const [id, expectedPost] of expectedById) {
     const published = observedById.get(id);
     const draft = observedById.get(`drafts.${id}`);
     if (!published && !draft) {
       missingIds.push(id);
+      continue;
+    }
+    if (!labCreatedIdSet.has(id)) {
+      blocked.push({
+        id,
+        reason: "document is not recorded as created by this search lab",
+      });
       continue;
     }
     if (draft) {
@@ -232,15 +275,31 @@ export function planCleanup(
       });
       continue;
     }
+    if (typeof published._rev !== "string" || published._rev.trim() === "") {
+      blocked.push({ id, reason: "document revision is malformed" });
+      continue;
+    }
 
     eligibleIds.push(id);
+    revisionsById.set(id, published._rev);
   }
 
   for (const id of unexpectedIds) {
     blocked.push({ id, reason: "document is not an exact manifest ID" });
   }
 
-  return { eligibleIds, missingIds, blocked };
+  return {
+    plan: { eligibleIds, missingIds, blocked },
+    revisionsById,
+  };
+}
+
+export function planCleanup(
+  expected: readonly SanitySeedPost[],
+  observedDocuments: readonly unknown[],
+  labCreatedIds: readonly string[] = [],
+): CleanupPlan {
+  return buildCleanupPlan(expected, observedDocuments, labCreatedIds).plan;
 }
 
 function createCleanupClient(config: CleanupConfig): CleanupClient {
@@ -270,12 +329,14 @@ async function readCleanupRecoveryReport(
   reportPath: string,
   config: CleanupConfig,
   manifestIds: readonly string[],
-): Promise<string[]> {
+): Promise<CleanupRecoveryState> {
   let text: string;
   try {
     text = await readFile(reportPath, "utf8");
   } catch (error) {
-    if (hasErrorCode(error, "ENOENT")) return [];
+    if (hasErrorCode(error, "ENOENT")) {
+      return { completedIds: [], pendingBatch: null };
+    }
     throw error;
   }
   if (Buffer.byteLength(text) > MAX_RECOVERY_REPORT_BYTES) {
@@ -288,13 +349,14 @@ async function readCleanupRecoveryReport(
   } catch {
     throw new Error("search cleanup recovery report is malformed");
   }
-  const expectedKeys = ["dataset", "deletedIds", "projectId"];
+  const expectedKeys = ["completedIds", "dataset", "pendingBatch", "projectId"];
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !== expectedKeys.join(",") ||
     value.projectId !== config.projectId ||
     value.dataset !== config.dataset ||
-    !Array.isArray(value.deletedIds)
+    !Array.isArray(value.completedIds) ||
+    !(value.pendingBatch === null || Array.isArray(value.pendingBatch))
   ) {
     throw new Error(
       "search cleanup recovery report is malformed or targets another dataset",
@@ -302,22 +364,56 @@ async function readCleanupRecoveryReport(
   }
 
   const allowedIds = new Set(manifestIds);
+  const completedIds = value.completedIds;
   if (
-    value.deletedIds.length > manifestIds.length ||
-    !value.deletedIds.every(
+    completedIds.length > manifestIds.length ||
+    !completedIds.every(
       (id): id is string => typeof id === "string" && allowedIds.has(id),
     ) ||
-    new Set(value.deletedIds).size !== value.deletedIds.length
+    new Set(completedIds).size !== completedIds.length
   ) {
     throw new Error("search cleanup recovery report contains invalid IDs");
   }
-  return value.deletedIds;
+
+  const pendingBatch = value.pendingBatch;
+  if (
+    pendingBatch !== null &&
+    (pendingBatch.length === 0 ||
+      pendingBatch.length > DELETE_BATCH_SIZE ||
+      !pendingBatch.every(
+        (entry): entry is { id: string; revision: string } =>
+          isRecord(entry) &&
+          Object.keys(entry).sort().join(",") === "id,revision" &&
+          typeof entry.id === "string" &&
+          allowedIds.has(entry.id) &&
+          typeof entry.revision === "string" &&
+          entry.revision.trim() !== "",
+      ) ||
+      new Set(pendingBatch.map((entry) => entry.id)).size !==
+        pendingBatch.length ||
+      pendingBatch.some((entry) => completedIds.includes(entry.id)))
+  ) {
+    throw new Error(
+      "search cleanup recovery report contains invalid pending IDs",
+    );
+  }
+
+  return {
+    completedIds: [...completedIds],
+    pendingBatch:
+      pendingBatch === null
+        ? null
+        : pendingBatch.map((entry) => ({
+            id: entry.id,
+            revision: entry.revision,
+          })),
+  };
 }
 
 async function writeCleanupRecoveryReport(
   reportPath: string,
   config: CleanupConfig,
-  deletedIds: readonly string[],
+  state: CleanupRecoveryState,
 ): Promise<void> {
   const reportDirectory = dirname(reportPath);
   await mkdir(reportDirectory, { recursive: true, mode: 0o700 });
@@ -329,7 +425,8 @@ async function writeCleanupRecoveryReport(
         {
           projectId: config.projectId,
           dataset: config.dataset,
-          deletedIds,
+          completedIds: state.completedIds,
+          pendingBatch: state.pendingBatch,
         },
         null,
         2,
@@ -371,9 +468,28 @@ export async function runSearchContentCleanup(
   const expected = buildSearchLabPosts();
   const ids = expected.map((post) => post._id);
   const lookupIds = [...ids, ...ids.map((id) => `drafts.${id}`)];
+  const seedReportPath = join(cwd, ".search-lab", "seed-recovery.json");
+  const cleanupReportPath = join(cwd, ".search-lab", "cleanup-recovery.json");
+  const readSeedReport =
+    dependencies.readSeedRecoveryReport ??
+    (() => readSeedRecoveryReport(seedReportPath, config, ids));
+  const readRecoveryReport =
+    dependencies.readRecoveryReport ??
+    (() => readCleanupRecoveryReport(cleanupReportPath, config, ids));
+  const writeRecoveryReport =
+    dependencies.writeRecoveryReport ??
+    ((state: CleanupRecoveryState) =>
+      writeCleanupRecoveryReport(cleanupReportPath, config, state));
+
+  const seedCreatedIds = await readSeedReport();
+  let recoveryState = await readRecoveryReport();
+  const completedIdSet = new Set(recoveryState.completedIds);
+  const deletableOwnedIds = seedCreatedIds.filter(
+    (id) => !completedIdSet.has(id),
+  );
   const client = dependencies.client ?? createCleanupClient(config);
 
-  const readPlan = async (): Promise<CleanupPlan> => {
+  const readPlan = async (): Promise<PlannedCleanup> => {
     const documents = await client.fetch(cleanupCandidatesQuery, {
       ids,
       lookupIds,
@@ -381,57 +497,107 @@ export async function runSearchContentCleanup(
     if (!Array.isArray(documents)) {
       throw new TypeError("Sanity cleanup preflight result must be an array");
     }
-    return planCleanup(expected, documents);
+    return buildCleanupPlan(expected, documents, deletableOwnedIds);
   };
 
-  const initialPlan = await readPlan();
+  const initial = await readPlan();
   log(`Target Sanity project: ${config.projectId}`);
   log(`Target Sanity dataset: ${config.dataset}`);
-  logPlan(initialPlan, log);
+  logPlan(initial.plan, log);
 
   if (!options.apply) {
     log("Dry run complete; zero Sanity deletes.");
-    return { mode: "dry-run", ...initialPlan, deletedIds: [] };
+    return { mode: "dry-run", ...initial.plan, deletedIds: [] };
   }
-  if (options.confirmedOwnedCount !== initialPlan.eligibleIds.length) {
+  if (options.confirmedOwnedCount !== initial.plan.eligibleIds.length) {
     throw new Error("confirmed owned count does not match cleanup eligibility");
   }
 
-  const freshPlan = await readPlan();
+  const fresh = await readPlan();
   if (
-    options.confirmedOwnedCount !== freshPlan.eligibleIds.length ||
-    !sameIds(initialPlan.eligibleIds, freshPlan.eligibleIds)
+    options.confirmedOwnedCount !== fresh.plan.eligibleIds.length ||
+    !sameIds(initial.plan.eligibleIds, fresh.plan.eligibleIds)
   ) {
     throw new Error(
       "fresh cleanup eligibility changed; rerun dry-run and review",
     );
   }
 
-  const reportPath = join(cwd, ".search-lab", "cleanup-recovery.json");
-  const readRecoveryReport =
-    dependencies.readRecoveryReport ??
-    (() => readCleanupRecoveryReport(reportPath, config, ids));
-  const writeRecoveryReport =
-    dependencies.writeRecoveryReport ??
-    ((deletedIds: readonly string[]) =>
-      writeCleanupRecoveryReport(reportPath, config, deletedIds));
-  const recordedIds = new Set(await readRecoveryReport());
+  let pendingRetry: { id: string; revision: string }[] | null = null;
+  if (recoveryState.pendingBatch !== null) {
+    const pendingIds = recoveryState.pendingBatch.map((entry) => entry.id);
+    const missingIds = new Set(fresh.plan.missingIds);
+    const eligibleIds = new Set(fresh.plan.eligibleIds);
+    const allMissing = pendingIds.every((id) => missingIds.has(id));
+    const allRetryable = recoveryState.pendingBatch.every(
+      (entry) =>
+        eligibleIds.has(entry.id) &&
+        fresh.revisionsById.get(entry.id) === entry.revision,
+    );
+
+    if (allMissing) {
+      const reconciledIds = new Set([
+        ...recoveryState.completedIds,
+        ...pendingIds,
+      ]);
+      recoveryState = {
+        completedIds: ids.filter((id) => reconciledIds.has(id)),
+        pendingBatch: null,
+      };
+      await writeRecoveryReport(recoveryState);
+    } else if (allRetryable) {
+      pendingRetry = recoveryState.pendingBatch;
+    } else {
+      throw new Error(
+        "pending cleanup batch cannot be reconciled safely; inspect without deleting",
+      );
+    }
+  }
+
+  const pendingIds = new Set(pendingRetry?.map((entry) => entry.id) ?? []);
+  const remainingIds = fresh.plan.eligibleIds.filter(
+    (id) => !pendingIds.has(id),
+  );
+  const workBatches = [
+    ...(pendingRetry === null ? [] : [pendingRetry.map((entry) => entry.id)]),
+    ...batches(remainingIds, DELETE_BATCH_SIZE),
+  ];
   const deletedIds: string[] = [];
 
-  for (const batch of batches(freshPlan.eligibleIds, DELETE_BATCH_SIZE)) {
+  for (const batch of workBatches) {
+    const pendingBatch = batch.map((id) => {
+      const revision = fresh.revisionsById.get(id);
+      if (revision === undefined) {
+        throw new Error(`eligible cleanup document has no revision: ${id}`);
+      }
+      return { id, revision };
+    });
+    recoveryState = {
+      completedIds: [...recoveryState.completedIds],
+      pendingBatch,
+    };
+    await writeRecoveryReport(recoveryState);
+
     let transaction = client.transaction();
-    for (const id of batch) {
+    for (const { id, revision } of pendingBatch) {
       assertExactManifestId(id);
+      transaction = transaction.patch(id, (patch) =>
+        patch.ifRevisionId(revision).unset(["__searchLabCleanupRevisionGuard"]),
+      );
       transaction = transaction.delete(id);
     }
     await transaction.commit();
     deletedIds.push(...batch);
-    for (const id of batch) recordedIds.add(id);
-    await writeRecoveryReport(ids.filter((id) => recordedIds.has(id)));
+    const completedIds = new Set([...recoveryState.completedIds, ...batch]);
+    recoveryState = {
+      completedIds: ids.filter((id) => completedIds.has(id)),
+      pendingBatch: null,
+    };
+    await writeRecoveryReport(recoveryState);
   }
 
   log(`Deleted: ${deletedIds.length}`);
-  return { mode: "apply", ...freshPlan, deletedIds };
+  return { mode: "apply", ...fresh.plan, deletedIds };
 }
 
 const isMain =

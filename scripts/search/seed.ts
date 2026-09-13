@@ -146,9 +146,9 @@ function hasErrorCode(error: unknown, code: string): boolean {
   return isRecord(error) && error.code === code;
 }
 
-async function readSeedRecoveryReport(
+export async function readSeedRecoveryReport(
   reportPath: string,
-  config: SeedConfig,
+  target: { projectId: string; dataset: string },
   manifestIds: readonly string[],
 ): Promise<string[]> {
   let text: string;
@@ -181,8 +181,8 @@ async function readSeedRecoveryReport(
     throw new Error("search seed recovery report is malformed");
   }
   if (
-    value.projectId !== config.projectId ||
-    value.dataset !== config.dataset
+    value.projectId !== target.projectId ||
+    value.dataset !== target.dataset
   ) {
     throw new Error("search seed recovery report target does not match");
   }
