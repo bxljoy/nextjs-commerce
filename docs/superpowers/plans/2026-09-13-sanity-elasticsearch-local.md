@@ -454,7 +454,7 @@ git commit -m "feat: add Elasticsearch search adapter"
 - Produces: public page `/blog/search?q=<text>&page=<number>`.
 - Consumes: `parseSearchInput` and `searchPublishedPosts`.
 
-- [ ] **Step 1: Add the search page with four explicit states**
+- [x] **Step 1: Add the search page with four explicit states**
 
 Implement a Server Component with a GET form and these states:
 
@@ -476,12 +476,12 @@ Use plain React text rendering. Build previous/next links with `URLSearchParams`
 so the query survives. Show exact total and current page; disable previous on
 page 1 and next when `page * 10 >= total`.
 
-- [ ] **Step 2: Add an opt-in link from the existing blog**
+- [x] **Step 2: Add an opt-in link from the existing blog**
 
 Add a small “Search posts” link near the `/blog` heading. Do not replace or
 paginate the existing list in this experiment.
 
-- [ ] **Step 3: Verify without Elasticsearch configured**
+- [x] **Step 3: Verify without Elasticsearch configured**
 
 ```bash
 pnpm test
@@ -492,7 +492,7 @@ pnpm build
 Expected: all existing routes build; `/blog` remains usable. The search page may
 be dynamically rendered but must not make build-time Elasticsearch requests.
 
-- [ ] **Step 4: Verify the first local vertical slice**
+- [x] **Step 4: Verify the first local vertical slice**
 
 ```bash
 docker compose -f compose.search.yaml up -d --wait
@@ -502,7 +502,7 @@ pnpm dev
 Manually check empty-index, malformed-query and unavailable states. Stop the dev
 server and run `docker compose -f compose.search.yaml down`.
 
-- [ ] **Step 5: Commit the vertical slice**
+- [x] **Step 5: Commit the vertical slice**
 
 ```bash
 git add app/blog/search/page.tsx app/blog/page.tsx
@@ -512,8 +512,8 @@ git commit -m "feat: add local blog search page"
 
 ### Checkpoint A: Read path
 
-- [ ] Run `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm build`.
-- [ ] Confirm no `NEXT_PUBLIC_ELASTICSEARCH_*`, public indexing route, Shopify search change, or Next cache wrapper exists.
+- [x] Run `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm build`.
+- [x] Confirm no `NEXT_PUBLIC_ELASTICSEARCH_*`, public indexing route, Shopify search change, or Next cache wrapper exists.
 - [ ] Obtain a focused review of Tasks 1–5 before adding write tooling.
 
 ---

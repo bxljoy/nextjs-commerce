@@ -13,7 +13,15 @@ export default async function BlogIndexPage() {
 
   return (
     <>
-      <h1 className="mb-8 text-5xl font-bold">Blog</h1>
+      <div className="mb-8 flex items-baseline justify-between gap-4">
+        <h1 className="text-5xl font-bold">Blog</h1>
+        <Link
+          href="/blog/search"
+          className="text-sm text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+        >
+          Search posts
+        </Link>
+      </div>
 
       {posts.length === 0 ? (
         <p className="text-neutral-500 dark:text-neutral-400">
