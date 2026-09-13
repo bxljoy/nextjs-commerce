@@ -3,41 +3,33 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import {
   buildSearchLabPosts,
   type SanitySeedPost,
 } from "../../fixtures/search/posts.ts";
-import { digestOwnedPost } from "./content-ownership.ts";
 import { readSeedRecoveryReport } from "./seed.ts";
 
 const SANITY_API_VERSION = "2024-01-01";
 const DELETE_BATCH_SIZE = 20;
 const MAX_RECOVERY_REPORT_BYTES = 16 * 1024;
 const EXACT_MANIFEST_ID = /^search-lab-post-\d{3}$/;
-const ALLOWED_CLEANUP_DOCUMENT_FIELDS = new Set([
+const SANITY_SYSTEM_DOCUMENT_FIELDS = new Set([
   "_createdAt",
-  "_id",
   "_rev",
   "_system",
-  "_type",
   "_updatedAt",
-  "body",
-  "excerpt",
-  "publishedAt",
-  "seo",
-  "slug",
-  "title",
 ]);
 
 const cleanupCandidatesQuery = `
   *[_id in $lookupIds]{
-    ...,
+    "document": @,
     "incomingReferenceIds": *[references(^._id)]._id
   }
 `;
 
-export type CleanupObservedDocument = Record<string, unknown> & {
-  _id: string;
+export type CleanupObservedDocument = {
+  document: Record<string, unknown> & { _id: string };
   incomingReferenceIds: readonly string[];
 };
 
@@ -206,22 +198,27 @@ function buildCleanupPlan(
     labCreatedIdSet.add(id);
   }
 
-  const observedById = new Map<string, unknown>();
+  const observedById = new Map<string, CleanupObservedDocument>();
   const unexpectedIds: string[] = [];
-  for (const [index, document] of observedDocuments.entries()) {
-    if (!isRecord(document) || typeof document._id !== "string") {
+  for (const [index, candidate] of observedDocuments.entries()) {
+    if (
+      !isRecord(candidate) ||
+      !isRecord(candidate.document) ||
+      typeof candidate.document._id !== "string"
+    ) {
       unexpectedIds.push(`<malformed-${index + 1}>`);
       continue;
     }
-    if (observedById.has(document._id)) {
-      throw new Error(`duplicate cleanup observation: ${document._id}`);
+    const documentId = candidate.document._id;
+    if (observedById.has(documentId)) {
+      throw new Error(`duplicate cleanup observation: ${documentId}`);
     }
-    observedById.set(document._id, document);
+    observedById.set(documentId, candidate as CleanupObservedDocument);
 
-    const publishedId = document._id.startsWith("drafts.")
-      ? document._id.slice("drafts.".length)
-      : document._id;
-    if (!expectedById.has(publishedId)) unexpectedIds.push(document._id);
+    const publishedId = documentId.startsWith("drafts.")
+      ? documentId.slice("drafts.".length)
+      : documentId;
+    if (!expectedById.has(publishedId)) unexpectedIds.push(documentId);
   }
 
   const eligibleIds: string[] = [];
@@ -230,9 +227,9 @@ function buildCleanupPlan(
   const revisionsById = new Map<string, string>();
 
   for (const [id, expectedPost] of expectedById) {
-    const published = observedById.get(id);
-    const draft = observedById.get(`drafts.${id}`);
-    if (!published && !draft) {
+    const publishedCandidate = observedById.get(id);
+    const draftCandidate = observedById.get(`drafts.${id}`);
+    if (!publishedCandidate && !draftCandidate) {
       missingIds.push(id);
       continue;
     }
@@ -243,21 +240,23 @@ function buildCleanupPlan(
       });
       continue;
     }
-    if (draft) {
+    if (draftCandidate) {
       blocked.push({ id, reason: "draft pair exists" });
       continue;
     }
-    if (!isRecord(published)) {
+    if (!publishedCandidate) {
       blocked.push({ id, reason: "existing document is malformed" });
       continue;
     }
 
-    const unexpectedFieldNames = Object.keys(published)
-      .filter(
-        (fieldName) =>
-          fieldName !== "incomingReferenceIds" &&
-          !ALLOWED_CLEANUP_DOCUMENT_FIELDS.has(fieldName),
-      )
+    const published = publishedCandidate.document;
+    const expectedFieldNames = new Set(Object.keys(expectedPost));
+    const contentEntries = Object.entries(published).filter(
+      ([fieldName]) => !SANITY_SYSTEM_DOCUMENT_FIELDS.has(fieldName),
+    );
+    const unexpectedFieldNames = contentEntries
+      .map(([fieldName]) => fieldName)
+      .filter((fieldName) => !expectedFieldNames.has(fieldName))
       .sort();
     if (unexpectedFieldNames.length > 0) {
       blocked.push({
@@ -267,19 +266,12 @@ function buildCleanupPlan(
       continue;
     }
 
-    let actualDigest: string;
-    try {
-      actualDigest = digestOwnedPost(published);
-    } catch {
-      blocked.push({ id, reason: "existing document is malformed" });
-      continue;
-    }
-    if (actualDigest !== digestOwnedPost(expectedPost)) {
+    if (!isDeepStrictEqual(Object.fromEntries(contentEntries), expectedPost)) {
       blocked.push({ id, reason: "owned content differs from manifest" });
       continue;
     }
 
-    const incomingReferenceIds = published.incomingReferenceIds;
+    const incomingReferenceIds = publishedCandidate.incomingReferenceIds;
     if (
       !Array.isArray(incomingReferenceIds) ||
       !incomingReferenceIds.every(

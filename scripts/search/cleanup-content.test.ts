@@ -11,7 +11,6 @@ import {
   parseCleanupOptions,
   planCleanup,
   runSearchContentCleanup,
-  type CleanupObservedDocument,
 } from "./cleanup-content.ts";
 
 type FakeRevisionPatch = {
@@ -25,12 +24,20 @@ function fixture(index: number): SanitySeedPost {
   return structuredClone(post);
 }
 
+type ObservedCleanupCandidate = {
+  document: Record<string, unknown> & { _id: string };
+  incomingReferenceIds: readonly string[];
+};
+
 function observed(
   post: SanitySeedPost,
   incomingReferenceIds: readonly string[] = [],
   revision = `rev-${post._id}`,
-): CleanupObservedDocument {
-  return { ...structuredClone(post), _rev: revision, incomingReferenceIds };
+): ObservedCleanupCandidate {
+  return {
+    document: { ...structuredClone(post), _rev: revision },
+    incomingReferenceIds,
+  };
 }
 
 test("plans only recorded, exact, unchanged, unreferenced manifest documents as eligible", () => {
@@ -64,14 +71,12 @@ test("blocks an identical pre-existing manifest document without seed provenance
 test("blocks changed, unexpected, draft-paired, and referenced documents", () => {
   const expected = [fixture(0), fixture(1), fixture(2)];
   const changed = observed(expected[0]!);
-  changed.title = `${changed.title} changed`;
-  const draft = {
-    ...observed(expected[1]!),
-    _id: `drafts.${expected[1]!._id}`,
-  };
+  changed.document.title = `${String(changed.document.title)} changed`;
+  const draft = observed(expected[1]!);
+  draft.document._id = `drafts.${expected[1]!._id}`;
   const referenced = observed(expected[2]!, ["preexisting.author"]);
   const unexpected = observed(fixture(3));
-  unexpected._id = "search-lab-post-999";
+  unexpected.document._id = "search-lab-post-999";
 
   assert.deepEqual(
     planCleanup(
@@ -104,7 +109,7 @@ test("blocks changed, unexpected, draft-paired, and referenced documents", () =>
 test("ignores known Sanity system metadata when fixture-owned fields are unchanged", () => {
   const expected = [fixture(0)];
   const withSystemMetadata = observed(expected[0]!);
-  withSystemMetadata._system = { base: { id: expected[0]!._id } };
+  withSystemMetadata.document._system = { base: { id: expected[0]!._id } };
 
   assert.deepEqual(
     planCleanup(expected, [withSystemMetadata], [expected[0]!._id]),
@@ -119,7 +124,7 @@ test("ignores known Sanity system metadata when fixture-owned fields are unchang
 test("blocks an added editorial field even when fixture-owned fields are unchanged", () => {
   const expected = [fixture(0)];
   const changed = observed(expected[0]!);
-  changed.coverImage = {
+  changed.document.coverImage = {
     _type: "image",
     asset: { _type: "reference", _ref: "image-asset" },
   };
@@ -136,13 +141,52 @@ test("blocks an added editorial field even when fixture-owned fields are unchang
   });
 });
 
+test("blocks nested Portable Text editorial fields omitted from the fixture", () => {
+  const expected = [fixture(0)];
+  const changedPost = fixture(0);
+  Object.assign(changedPost.body[0] as unknown as Record<string, unknown>, {
+    listItem: "bullet",
+    level: 1,
+  });
+
+  assert.deepEqual(
+    planCleanup(expected, [observed(changedPost)], [expected[0]!._id]),
+    {
+      eligibleIds: [],
+      missingIds: [],
+      blocked: [
+        {
+          id: expected[0]!._id,
+          reason: "owned content differs from manifest",
+        },
+      ],
+    },
+  );
+});
+
+test("blocks a stored field that shares the computed reference alias name", () => {
+  const expected = [fixture(0)];
+  const changed = observed(expected[0]!);
+  changed.document.incomingReferenceIds = ["stored-editorial-value"];
+
+  assert.deepEqual(planCleanup(expected, [changed], [expected[0]!._id]), {
+    eligibleIds: [],
+    missingIds: [],
+    blocked: [
+      {
+        id: expected[0]!._id,
+        reason:
+          "document has non-manifest content fields: incomingReferenceIds",
+      },
+    ],
+  });
+});
+
 test("a draft pair blocks an otherwise identical published document", () => {
   const expected = [fixture(0)];
   const published = observed(expected[0]!);
-  const draft = {
-    ...observed(expected[0]!),
-    _id: `drafts.${expected[0]!._id}`,
-  };
+  const draft = observed(expected[0]!);
+  draft.document._id = `drafts.${expected[0]!._id}`;
 
   assert.deepEqual(
     planCleanup(expected, [published, draft], [expected[0]!._id]),
@@ -242,7 +286,7 @@ test("requires a separate exact apply confirmation and defaults to dry-run", () 
 test("dry-run reports counts and IDs while performing zero mutations", async () => {
   const expected = buildSearchLabPosts();
   const changed = observed(expected[1]!);
-  changed.excerpt = `${changed.excerpt} changed`;
+  changed.document.excerpt = `${String(changed.document.excerpt)} changed`;
   const logs: string[] = [];
   let fetchCount = 0;
 
@@ -256,7 +300,7 @@ test("dry-run reports counts and IDs while performing zero mutations", async () 
     client: {
       async fetch(query, parameters) {
         fetchCount += 1;
-        assert.match(query, /\{\s*\.\.\.,/);
+        assert.match(query, /"document": @/);
         assert.equal(parameters.ids.length, 100);
         assert.equal(parameters.lookupIds.length, 200);
         return [observed(expected[0]!), changed];
@@ -610,7 +654,9 @@ test("a partial apply persists completed IDs and safely resumes", async () => {
             throw new Error("simulated cleanup batch failure");
           }
           for (const id of ids) {
-            const index = persisted.findIndex((post) => post._id === id);
+            const index = persisted.findIndex(
+              (post) => post.document._id === id,
+            );
             assert.notEqual(index, -1);
             persisted.splice(index, 1);
           }

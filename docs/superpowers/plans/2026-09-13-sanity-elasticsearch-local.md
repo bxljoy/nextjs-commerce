@@ -713,9 +713,9 @@ git commit -m "feat: add guarded Sanity search fixtures"
 
 - [x] **Step 1: Write failing cleanup-plan tests**
 
-Test that only exact manifest IDs with matching owned-content digests, no fields
-outside the fixture manifest plus known Sanity system metadata, and zero incoming
-references are eligible. Missing documents are harmless; changed, unexpected,
+Test that only exact manifest IDs whose complete document matches the fixture
+after removing known top-level Sanity system metadata, and that have zero incoming
+references, are eligible. Missing documents are harmless; changed, unexpected,
 draft-paired or referenced documents block deletion. Prefix-only and
 wildcard inputs must be rejected.
 
@@ -964,7 +964,7 @@ Use one writer per worktree and fresh review at Checkpoints A and B.
 | Public insecure Elasticsearch                  | Local machine/data exposed               | Loopback port binding, no tunnel, endpoint validator                        |
 | Deep paging cost                               | Increasing Elasticsearch memory work     | Fixed size 10, page maximum 100; document `search_after` later              |
 | Search/detail freshness confusion              | Search and blog page disagree briefly    | Document separate caches; test both boundaries explicitly                   |
-| Generated content cleanup removes edits        | Learning work/data lost                  | Full field-name, digest and reference checks; refuse changes; separate gate |
+| Generated content cleanup removes edits        | Learning work/data lost                  | Full document/value and reference checks; refuse changes; separate gate     |
 | Elasticsearch unavailable                      | Blog search appears empty                | Typed unavailable state; existing blog/detail routes remain independent     |
 | Template content gives misleading relevance    | Weak learning evidence                   | Controlled term pairs and relationship assertions, no scale claim           |
 
