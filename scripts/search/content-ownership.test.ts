@@ -176,7 +176,11 @@ test("dry-run reads proposed namespaces and performs zero mutations", async () =
     conflictIds: [],
     createdIds: [],
   });
-  assert.equal((queryParameters?.ids as unknown[]).length, 100);
+  const manifestIds = buildSearchLabPosts().map((post) => post._id);
+  assert.deepEqual(queryParameters?.ids, [
+    ...manifestIds,
+    ...manifestIds.map((id) => `drafts.${id}`),
+  ]);
   assert.equal((queryParameters?.slugs as unknown[]).length, 100);
   assert.equal(
     logs.some((message) => message.includes("dedicated-test-token")),
@@ -186,6 +190,39 @@ test("dry-run reads proposed namespaces and performs zero mutations", async () =
     logs.some((message) => message.includes("paragraph-")),
     false,
   );
+});
+
+test("dry-run blocks a draft-only ID collision with a non-manifest slug", async () => {
+  const expected = fixture(0);
+  const draft = {
+    ...copy(expected),
+    _id: `drafts.${expected._id}`,
+    slug: { _type: "slug", current: "unrelated-existing-draft" },
+  };
+  const logs: string[] = [];
+
+  await assert.rejects(
+    runSearchSeed({
+      argv: [],
+      env: {
+        SANITY_PROJECT_ID: "project123",
+        SANITY_DATASET: "production",
+        SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+      },
+      client: {
+        async fetch() {
+          return [draft];
+        },
+        transaction() {
+          throw new Error("blocked dry-run must not create a transaction");
+        },
+      },
+      log: (message) => logs.push(message),
+    }),
+    /blocked by preflight conflicts/,
+  );
+
+  assert.ok(logs.includes(`Conflict ID: ${expected._id}`));
 });
 
 test("apply creates only missing posts in transactions of twenty", async () => {

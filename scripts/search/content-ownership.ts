@@ -125,6 +125,14 @@ export function planSeed(
       isRecord(candidate) && typeof candidate._id === "string"
         ? candidate._id
         : `<malformed-${index + 1}>`;
+    const draftId = rawId.startsWith("drafts.")
+      ? rawId.slice("drafts.".length)
+      : undefined;
+    if (draftId && expectedById.has(draftId)) {
+      conflicts.push({ id: draftId, reason: "draft pair exists" });
+      continue;
+    }
+
     let actual: SanitySeedPost;
     try {
       actual = ownedPostFields(candidate);

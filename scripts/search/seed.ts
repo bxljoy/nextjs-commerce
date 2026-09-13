@@ -247,9 +247,10 @@ export async function runSearchSeed(
 
   const client = dependencies.client ?? createSeedClient(config);
   const ids = expected.map((post) => post._id);
+  const lookupIds = [...ids, ...ids.map((id) => `drafts.${id}`)];
   const slugs = expected.map((post) => post.slug.current);
   const existing = await client.fetch(existingSeedCandidatesQuery, {
-    ids,
+    ids: lookupIds,
     slugs,
   });
   if (!Array.isArray(existing)) {
