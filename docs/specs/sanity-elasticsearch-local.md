@@ -2,9 +2,9 @@
 
 ## Status and approval
 
-Draft for owner review. No implementation, Docker startup, dependency changes,
-Sanity writes, webhook changes, push or deployment is authorized by this document.
-An implementation plan follows spec approval.
+Approved by the owner on 2026-09-13. No implementation, Docker startup,
+dependency changes, Sanity writes, webhook changes, push or deployment is
+authorized by this approval. The implementation plan has a separate review gate.
 
 ## Objective
 
