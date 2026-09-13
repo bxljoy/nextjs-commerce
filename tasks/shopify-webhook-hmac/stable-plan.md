@@ -516,7 +516,7 @@ was revoked with edge rejection verified, local credential records and clipboard
 contents were removed, and the six Production subscriptions remained unchanged.
 `main` stayed at `342c2431d3dbd94be1dd9de8022c8281e1990956` locally and remotely.
 
-- [ ] **Step 8: Record completion and preserve both branches**
+- [x] **Step 8: Record completion and preserve both branches**
 
 Update documentation with exact commits and owner-attested evidence, rerun formatting/tests for any documentation commit, push the stable branch, and verify:
 
@@ -528,3 +528,11 @@ test -z "$(git status --short)"
 ```
 
 Both branches must remain present and separate.
+
+Completion evidence: documentation commit
+`71946f35a1e519184c6c53b332fac597f36c0170` was pushed only to
+`learning/next15-stable-caching`, and its branch Preview reached Ready. At the
+preservation gate, local and remote stable refs matched, local and remote `main`
+refs both remained at `342c2431d3dbd94be1dd9de8022c8281e1990956`, the working
+tree was clean, and the maintained branches remained separate. This final
+checklist closure changes no runtime contract.
