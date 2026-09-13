@@ -1,6 +1,6 @@
 # Intent: Authenticate Shopify webhooks with HMAC
 
-**Status:** Deployed and Production-verified on `main`; stable local implementation complete, protected Preview verification pending.
+**Status:** Deployed and Production-verified on `main`; stable local and protected Preview acceptance complete, stable-parent merge pending.
 **Date:** 2026-09-12
 **Supersedes:** Query-string authentication for `POST /api/revalidate`
 
@@ -77,9 +77,9 @@ one-argument `revalidateTag(tag)` API.
 
 The shared verifier and tests are ported byte-for-byte to a feature branch based
 on `learning/next15-stable-caching`, with only the stable one-argument
-invalidation adapter. Local implementation is complete; protected Preview
-verification remains pending. Merge that work only into the stable branch; do
-not merge its cache API into `main`.
+invalidation adapter. Local and protected Preview acceptance are complete. Merge
+that work only into the stable branch after explicit approval; do not merge its
+cache API into `main`.
 
 ## Preview verification
 
@@ -108,6 +108,36 @@ Owner-attested evidence from Shopify Admin and the live Vercel Runtime Logs view
 - The request entries exposed no raw body, HMAC value, signing secret or bypass
   value.
 - Both temporary Shopify subscriptions were deleted; the six Production
+  subscriptions were left unchanged.
+
+No signing secret, HMAC, payload or bypass value was recorded.
+
+### Stable Preview verification
+
+Vercel deployed stable feature commit
+`579593187a3606352d038446672175aa8ca9ccae` to a protected Preview before
+acceptance began.
+
+Agent-observed evidence:
+
+- An invalid HMAC reached the stable application and returned HTTP 401 without
+  invalidation.
+- Previously warmed Product and Collection pages reflected reversible title
+  changes on the first request after each genuine Shopify event.
+- A later genuine Product event refreshed the product's newly available inventory
+  state on the first request.
+- Every temporary Vercel bypass was revoked, edge rejection was verified, and
+  local credential records and clipboard contents were removed.
+
+Owner-attested evidence from Shopify Admin, two isolated browser sessions, and
+live Vercel Runtime Logs:
+
+- Product and Collection forward and reverse events produced four genuine stable
+  Preview `POST /api/revalidate` deliveries, all with HTTP 200.
+- The entries exposed no raw body, HMAC value, signing secret or bypass value.
+- Cart creation succeeded, and quantities remained isolated across two browser
+  sessions.
+- All temporary Shopify subscriptions were deleted; the six Production
   subscriptions were left unchanged.
 
 No signing secret, HMAC, payload or bypass value was recorded.

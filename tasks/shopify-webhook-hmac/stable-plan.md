@@ -424,7 +424,7 @@ test -z "$(git status --short)"
 
 - External: stable feature branch Preview, Shopify manual webhooks, Vercel protection, stable parent merge
 
-- [ ] **Step 1: Obtain approval and push only the stable feature branch**
+- [x] **Step 1: Obtain approval and push only the stable feature branch**
 
 Run only after owner approval:
 
@@ -434,7 +434,7 @@ git push --set-upstream origin feature/shopify-webhook-hmac-stable
 
 Do not push or merge to `main`.
 
-- [ ] **Step 2: Confirm stable Preview environment and deployment**
+- [x] **Step 2: Confirm stable Preview environment and deployment**
 
 Verify without exposing values:
 
@@ -445,11 +445,11 @@ Verify without exposing values:
 
 Redeploy after any environment change.
 
-- [ ] **Step 3: Obtain approval for temporary Shopify subscriptions**
+- [x] **Step 3: Obtain approval for temporary Shopify subscriptions**
 
 Create a new short-lived Vercel automation bypass. In Shopify Admin create temporary manual JSON Product update and Collection update subscriptions. Set each destination to the exact stable feature branch alias, `/api/revalidate`, and the generated `x-vercel-protection-bypass` query parameter. Do not add a legacy application secret and do not alter Production subscriptions.
 
-- [ ] **Step 4: Perform stable Preview acceptance**
+- [x] **Step 4: Perform stable Preview acceptance**
 
 For approved reversible test data:
 
@@ -465,9 +465,30 @@ For approved reversible test data:
 
 Record browser checks as owner-attested unless an approved isolated browser tool captures them.
 
-- [ ] **Step 5: Remove temporary Preview infrastructure**
+- [x] **Step 5: Remove temporary Preview infrastructure**
 
 Delete the temporary Product and Collection subscriptions and revoke the Vercel automation bypass. Confirm no concrete bypass remains in Shopify configuration, logs copied into the repository, or local files.
+
+Completed against protected Preview deployment
+`nextjs-commerce-z7w80ikxa-alexs-projects-6f2361c1.vercel.app` for exact feature
+commit `579593187a3606352d038446672175aa8ca9ccae`:
+
+- The stable application returned HTTP 401 for invalid HMAC.
+- Genuine Product and Collection forward and reverse events produced four stable
+  Preview deliveries with HTTP 200 and refreshed both warmed pages on their first
+  subsequent requests.
+- A genuine Product event refreshed the newly available inventory state on the
+  first request.
+- The owner confirmed that Runtime Logs exposed no raw body, HMAC value, signing
+  secret or bypass value.
+- The owner confirmed cart creation and quantity isolation across two browser
+  sessions.
+- All temporary Shopify subscriptions were deleted, the six Production
+  subscriptions remained unchanged, every temporary bypass was revoked, and
+  local credential records and clipboard contents were removed.
+
+No secret, HMAC, payload or bypass value is recorded here. Merge and post-merge
+stable verification remain pending.
 
 - [ ] **Step 6: Obtain approval and merge only into the stable parent**
 

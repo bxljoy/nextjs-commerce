@@ -152,8 +152,8 @@ entries, cached misses, unpublishes/deletes, and both sides of a slug rename.
   navigation. A hard reload obtains server state again; the product requirement
   does not require live updates to already-open pages.
 - **Failures:** the service clients and route error boundaries retain their
-  existing behavior. External Preview verification is required before claiming
-  end-to-end cache freshness.
+  existing behavior. External Preview verification supplies the end-to-end
+  freshness evidence that local checks cannot.
 
 ## Verification evidence
 
@@ -192,9 +192,16 @@ The Preview webhook used a separate Sanity signature secret plus a Vercel
 automation-bypass header because Deployment Protection otherwise rejected the
 request before Next.js. The temporary webhook was disabled after validation.
 These are owner-attested external checks, not an agent-recorded browser run.
-They do not constitute stable Shopify HMAC acceptance. The stable HMAC
-implementation is locally complete, while independent protected Preview
-verification remains pending.
+
+On 2026-09-13, stable feature commit
+`579593187a3606352d038446672175aa8ca9ccae` independently passed protected
+Preview Shopify HMAC acceptance. Genuine Product and Collection forward and
+reverse deliveries all returned HTTP 200 and refreshed warmed pages on the first
+request. Invalid HMAC returned HTTP 401. A genuine Product event also refreshed
+an inventory availability change, and cart quantities remained isolated across
+two browser sessions. The owner confirmed that Runtime Logs exposed no body,
+HMAC, signing secret or bypass value. All temporary subscriptions and bypasses
+were removed, while the six Production subscriptions were unchanged.
 
 The stable dependency diff introduces no new advisory relative to `main` and
 removes 12 findings. Eleven transitive findings remain disclosed for separate
@@ -253,11 +260,11 @@ volume or invalidation cost makes that additional contract worthwhile.
 
 ### Would you merge this branch?
 
-Not yet. The stable Shopify HMAC implementation has passed its local gates, but
-its independent protected Preview acceptance remains pending. After that gate,
-any merge belongs only on `learning/next15-stable-caching`; `main` and the stable
-branch remain separate maintained implementations. Remaining dependency
-advisories stay in a separate remediation scope.
+Yes, after explicit owner approval. The stable Shopify HMAC implementation has
+passed its local and independent protected Preview gates. The merge belongs only
+on `learning/next15-stable-caching`; `main` and the stable branch remain separate
+maintained implementations. Remaining dependency advisories stay in a separate
+remediation scope.
 
 ## Official sources
 
