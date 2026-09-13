@@ -710,21 +710,21 @@ git commit -m "feat: add guarded Sanity search fixtures"
 - Produces: dry-run/apply cleanup limited to manifest IDs and package command interface.
 - Consumes: Task 7 fixtures and digests.
 
-- [ ] **Step 1: Write failing cleanup-plan tests**
+- [x] **Step 1: Write failing cleanup-plan tests**
 
 Test that only exact manifest IDs with matching owned-content digests and zero
 incoming references are eligible. Missing documents are harmless; changed,
 unexpected, draft-paired or referenced documents block deletion. Prefix-only and
 wildcard inputs must be rejected.
 
-- [ ] **Step 2: Implement cleanup with a separate apply gate**
+- [x] **Step 2: Implement cleanup with a separate apply gate**
 
 Dry-run prints eligible/missing/blocked counts and IDs. Apply requires
 `--apply --confirm-owned-count=<exact dry-run eligible count>` and a fresh read.
 Delete explicit IDs in bounded transactions; never issue a GROQ `delete` or
 wildcard operation. Persist completed IDs to a local recovery report.
 
-- [ ] **Step 3: Add exact package scripts**
+- [x] **Step 3: Add exact package scripts**
 
 ```json
 {
@@ -737,7 +737,7 @@ wildcard operation. Persist completed IDs to a local recovery report.
 
 Verify pnpm forwards flags exactly with dry-runs before documenting commands.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```bash
 pnpm test:unit -- scripts/search/cleanup-content.test.ts

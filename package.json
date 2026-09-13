@@ -7,6 +7,10 @@
     "start": "next start",
     "prettier": "prettier --write --ignore-unknown .",
     "prettier:check": "prettier --check --ignore-unknown .",
+    "search:seed": "node --env-file=.env --no-warnings --experimental-strip-types scripts/search/seed.ts",
+    "search:sync": "node --env-file=.env --no-warnings --experimental-strip-types scripts/search/sync.ts",
+    "search:cleanup-content": "node --env-file=.env --no-warnings --experimental-strip-types scripts/search/cleanup-content.ts",
+    "test:search:integration": "node --env-file=.env --no-warnings --experimental-strip-types --test lib/search/elasticsearch.integration.test.ts",
     "test:unit": "node --no-warnings --experimental-strip-types --test",
     "test": "pnpm test:unit && pnpm prettier:check"
   },
