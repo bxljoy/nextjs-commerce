@@ -10,7 +10,7 @@
 
 **Spec:** `docs/specs/sanity-elasticsearch-local.md`
 
-**Status:** Draft for owner review. No implementation or live Sanity operation is authorized yet.
+**Status:** Local implementation and separately approved live acceptance are complete on `feature/sanity-elasticsearch-local`; independent acceptance review is in progress. No further Sanity mutation, final cleanup apply, push, merge, deployment, tunnel, public exposure, or Vercel configuration is authorized.
 
 ## Global Constraints
 
@@ -514,7 +514,7 @@ git commit -m "feat: add local blog search page"
 
 - [x] Run `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm build`.
 - [x] Confirm no `NEXT_PUBLIC_ELASTICSEARCH_*`, public indexing route, Shopify search change, or Next cache wrapper exists.
-- [ ] Obtain a focused review of Tasks 1–5 before adding write tooling.
+- [x] Obtain a focused review of Tasks 1–5 before adding write tooling.
 
 ---
 
@@ -713,9 +713,10 @@ git commit -m "feat: add guarded Sanity search fixtures"
 
 - [x] **Step 1: Write failing cleanup-plan tests**
 
-Test that only exact manifest IDs with matching owned-content digests and zero
-incoming references are eligible. Missing documents are harmless; changed,
-unexpected, draft-paired or referenced documents block deletion. Prefix-only and
+Test that only exact manifest IDs with matching owned-content digests, no fields
+outside the fixture manifest plus known Sanity system metadata, and zero incoming
+references are eligible. Missing documents are harmless; changed, unexpected,
+draft-paired or referenced documents block deletion. Prefix-only and
 wildcard inputs must be rejected.
 
 - [x] **Step 2: Implement cleanup with a separate apply gate**
@@ -754,10 +755,10 @@ git commit -m "feat: guard search-lab content cleanup"
 
 ### Checkpoint B: Write-tool safety
 
-- [ ] Obtain adversarial review of collision, partial-write, alias-swap and cleanup failure paths.
-- [ ] Confirm every command defaults to dry-run and tests never contact Sanity production.
-- [ ] Confirm no token/body is logged and broad CLI authentication is unused.
-- [ ] Do not seed until the owner reviews the exact fixture dry-run and explicitly approves the live write.
+- [x] Obtain adversarial review of collision, partial-write, alias-swap and cleanup failure paths.
+- [x] Confirm every command defaults to dry-run and tests never contact Sanity production.
+- [x] Confirm no token/body is logged and broad CLI authentication is unused.
+- [x] Do not seed until the owner reviews the exact fixture dry-run and explicitly approves the live write.
 
 ---
 
@@ -963,7 +964,7 @@ Use one writer per worktree and fresh review at Checkpoints A and B.
 | Public insecure Elasticsearch                  | Local machine/data exposed               | Loopback port binding, no tunnel, endpoint validator                        |
 | Deep paging cost                               | Increasing Elasticsearch memory work     | Fixed size 10, page maximum 100; document `search_after` later              |
 | Search/detail freshness confusion              | Search and blog page disagree briefly    | Document separate caches; test both boundaries explicitly                   |
-| Generated content cleanup removes edits        | Learning work/data lost                  | Digest and reference checks; refuse changed docs; separate approval         |
+| Generated content cleanup removes edits        | Learning work/data lost                  | Full field-name, digest and reference checks; refuse changes; separate gate |
 | Elasticsearch unavailable                      | Blog search appears empty                | Typed unavailable state; existing blog/detail routes remain independent     |
 | Template content gives misleading relevance    | Weak learning evidence                   | Controlled term pairs and relationship assertions, no scale claim           |
 

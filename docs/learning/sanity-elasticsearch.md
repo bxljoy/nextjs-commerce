@@ -161,15 +161,19 @@ the next page. That is a later design, not verified repository behavior.
 All content mutation requires separate owner approval. Dry-run is the default.
 The seed uses exactly 100 deterministic root-level IDs
 (`search-lab-post-001` through `search-lab-post-100`) and owned slug prefixes,
-refuses ID or slug conflicts, skips only byte-semantically identical owned
-documents, writes in batches of 20, and records exact created IDs for recovery.
+refuses ID or slug conflicts, skips only documents matching the normalized
+fixture-owned field digest, writes in batches of 20, and records exact created
+IDs for recovery.
 It must preserve the five observed baseline posts and every other pre-existing
 document.
 
 Cleanup is a separate operation and a dry-run does not authorize deletion. Only
-manifest IDs recorded as created by this lab can be eligible. Draft pairs,
-changed digests, incoming references, malformed observations, and documents not
-recorded as lab-created are blocked. Cleanup apply would require another exact
+manifest IDs recorded as created by this lab can be eligible. Cleanup compares
+the normalized fixture-owned field digest and rejects observed document fields
+outside the manifest plus known Sanity system metadata; an added editorial field
+such as `coverImage` therefore blocks deletion. Draft pairs, changed digests,
+incoming references, malformed observations, and documents not recorded as
+lab-created are also blocked. Cleanup apply would require another exact
 owner-approved command and revision-guarded bounded deletes. No wildcard
 cleanup is available.
 
@@ -261,9 +265,9 @@ did not touch the live lab index, did not attempt alias promotion, and left
 full rebuild promoted `commerce-sanity-posts-v1789329295426` and retained the
 former 105-document index.
 
-The final content-cleanup dry-run reported 100 eligible, zero missing, and zero
-blocked documents. Every candidate was an unchanged, unreferenced, lab-recorded
-root-level manifest document. No final cleanup apply is approved or performed;
+After the full observed-field guard was added, the final content-cleanup dry-run
+reported 100 eligible, zero missing, and zero blocked documents. Every candidate
+was an unchanged, unreferenced, lab-recorded root-level manifest document. No final cleanup apply is approved or performed;
 all five baseline posts and all 100 corrected generated posts remain in Sanity.
 
 The final dependency audit remains at the inherited stable baseline of seven

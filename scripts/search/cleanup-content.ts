@@ -14,18 +14,24 @@ const SANITY_API_VERSION = "2024-01-01";
 const DELETE_BATCH_SIZE = 20;
 const MAX_RECOVERY_REPORT_BYTES = 16 * 1024;
 const EXACT_MANIFEST_ID = /^search-lab-post-\d{3}$/;
+const ALLOWED_CLEANUP_DOCUMENT_FIELDS = new Set([
+  "_createdAt",
+  "_id",
+  "_rev",
+  "_system",
+  "_type",
+  "_updatedAt",
+  "body",
+  "excerpt",
+  "publishedAt",
+  "seo",
+  "slug",
+  "title",
+]);
 
 const cleanupCandidatesQuery = `
   *[_id in $lookupIds]{
-    _id,
-    _rev,
-    _type,
-    title,
-    slug,
-    publishedAt,
-    excerpt,
-    body,
-    seo,
+    ...,
     "incomingReferenceIds": *[references(^._id)]._id
   }
 `;
@@ -243,6 +249,21 @@ function buildCleanupPlan(
     }
     if (!isRecord(published)) {
       blocked.push({ id, reason: "existing document is malformed" });
+      continue;
+    }
+
+    const unexpectedFieldNames = Object.keys(published)
+      .filter(
+        (fieldName) =>
+          fieldName !== "incomingReferenceIds" &&
+          !ALLOWED_CLEANUP_DOCUMENT_FIELDS.has(fieldName),
+      )
+      .sort();
+    if (unexpectedFieldNames.length > 0) {
+      blocked.push({
+        id,
+        reason: `document has non-manifest content fields: ${unexpectedFieldNames.join(", ")}`,
+      });
       continue;
     }
 

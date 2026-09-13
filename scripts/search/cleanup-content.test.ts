@@ -101,6 +101,41 @@ test("blocks changed, unexpected, draft-paired, and referenced documents", () =>
   );
 });
 
+test("ignores known Sanity system metadata when fixture-owned fields are unchanged", () => {
+  const expected = [fixture(0)];
+  const withSystemMetadata = observed(expected[0]!);
+  withSystemMetadata._system = { base: { id: expected[0]!._id } };
+
+  assert.deepEqual(
+    planCleanup(expected, [withSystemMetadata], [expected[0]!._id]),
+    {
+      eligibleIds: [expected[0]!._id],
+      missingIds: [],
+      blocked: [],
+    },
+  );
+});
+
+test("blocks an added editorial field even when fixture-owned fields are unchanged", () => {
+  const expected = [fixture(0)];
+  const changed = observed(expected[0]!);
+  changed.coverImage = {
+    _type: "image",
+    asset: { _type: "reference", _ref: "image-asset" },
+  };
+
+  assert.deepEqual(planCleanup(expected, [changed], [expected[0]!._id]), {
+    eligibleIds: [],
+    missingIds: [],
+    blocked: [
+      {
+        id: expected[0]!._id,
+        reason: "document has non-manifest content fields: coverImage",
+      },
+    ],
+  });
+});
+
 test("a draft pair blocks an otherwise identical published document", () => {
   const expected = [fixture(0)];
   const published = observed(expected[0]!);
@@ -219,8 +254,9 @@ test("dry-run reports counts and IDs while performing zero mutations", async () 
       SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
     },
     client: {
-      async fetch(_query, parameters) {
+      async fetch(query, parameters) {
         fetchCount += 1;
+        assert.match(query, /\{\s*\.\.\.,/);
         assert.equal(parameters.ids.length, 100);
         assert.equal(parameters.lookupIds.length, 200);
         return [observed(expected[0]!), changed];

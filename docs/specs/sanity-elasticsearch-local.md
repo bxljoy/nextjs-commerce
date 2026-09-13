@@ -186,7 +186,9 @@ editing; stop edits during the lab sync and rerun afterward if needed.
 - Use a separate local Sanity write credential; never expose it to browser code
   or commit it. The search runtime does not need write permission.
 - Cleanup is a separate approved dry-run/apply operation restricted to manifest
-  IDs with matching ownership/content evidence. Refuse changed documents and
+  IDs with matching ownership/content evidence. Compare the complete observed
+  field-name set against fixture fields plus known Sanity system metadata so an
+  added editorial field also blocks deletion. Refuse changed documents and
   unexpected references rather than force deletion. Preserve original posts.
 - The posts will affect the live blog and sitemap and may trigger existing
   Production cache webhooks. Publish in bounded batches, not a request storm.
