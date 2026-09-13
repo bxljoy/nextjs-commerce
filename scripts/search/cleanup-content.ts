@@ -13,7 +13,7 @@ import { readSeedRecoveryReport } from "./seed.ts";
 const SANITY_API_VERSION = "2024-01-01";
 const DELETE_BATCH_SIZE = 20;
 const MAX_RECOVERY_REPORT_BYTES = 16 * 1024;
-const EXACT_MANIFEST_ID = /^searchLab\.post\.\d{3}$/;
+const EXACT_MANIFEST_ID = /^search-lab-post-\d{3}$/;
 
 const cleanupCandidatesQuery = `
   *[_id in $lookupIds]{

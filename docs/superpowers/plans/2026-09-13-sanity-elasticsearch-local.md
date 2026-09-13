@@ -24,7 +24,7 @@
 - Preserve the five currently observed posts and every other pre-existing Sanity document.
 - Seed and cleanup commands default to dry-run. Live Sanity writes/deletes require a separate owner approval after reviewing exact output.
 - Use a dedicated local `SANITY_SEARCH_LAB_WRITE_TOKEN`; never reuse, print or commit a personal CLI token.
-- Use deterministic `searchLab.post.NNN` IDs and `search-lab-...` slugs; refuse collisions and changed-document cleanup.
+- Use deterministic root-level `search-lab-post-NNN` IDs and `search-lab-...` slugs; refuse collisions and changed-document cleanup. Dotted IDs are private document paths in Sanity and are not visible to the intentionally unauthenticated storefront client.
 - No wildcard index deletion. Retain the previously active versioned index for rollback.
 - Keep inherited dependency remediation separate; never weaken tests or apply a forced audit fix.
 - Obtain explicit approval before committing/pushing a completed feature, changing external configuration, or performing live content operations.
@@ -635,8 +635,9 @@ without printing it. Do not use the globally authenticated Sanity CLI token.
 
 - [x] **Step 2: Write failing fixture tests**
 
-Require exactly 100 unique documents with IDs `searchLab.post.001` through
-`searchLab.post.100`, unique `search-lab-` slugs, `_type: "post"`, valid dates,
+Require exactly 100 unique root-level documents with IDs
+`search-lab-post-001` through `search-lab-post-100`, unique `search-lab-` slugs,
+`_type: "post"`, valid dates,
 Portable Text keys and visibly labeled titles. Assert no email, phone number,
 real person name or copied existing post title appears.
 
@@ -828,14 +829,14 @@ git commit -m "test: verify local Elasticsearch search behavior"
 - Verifies: real Sanity content creation, complete synchronization, search UX and lifecycle behavior.
 - Consumes: every previous task and separate owner approvals.
 
-- [ ] **Step 1: Create the interview learning guide before live writes**
+- [x] **Step 1: Create the interview learning guide before live writes**
 
 Explain inverted index, analyzers/tokenization, BM25, field boosts, source of
 truth versus projection, rebuild/alias promotion, eventual consistency,
 `from`/`size` limits, PIT/`search_after` as a later design, and failure recovery.
 Separate verified repository behavior from proposed hosted architecture.
 
-- [ ] **Step 2: Present the seed gate**
+- [x] **Step 2: Present the seed gate**
 
 Run `pnpm search:seed -- --dry-run` and present target dataset name, proposed
 count, skipped-identical count and conflict IDs only. Present current source
@@ -848,7 +849,7 @@ pnpm search:seed -- --apply --confirm-count=100
 Verify 100 created or accounted for as identical, while the five baseline posts
 and all other documents remain unchanged.
 
-- [ ] **Step 3: Build and promote the complete local index**
+- [x] **Step 3: Build and promote the complete local index**
 
 ```bash
 docker compose -f compose.search.yaml up -d --wait
@@ -861,14 +862,14 @@ Compare source and index ID sets/counts. Record old/new index names without body
 content. Confirm alias points to exactly one validated index and the former index
 is retained.
 
-- [ ] **Step 4: Verify ranking and pagination in the browser**
+- [x] **Step 4: Verify ranking and pagination in the browser**
 
 Run `pnpm dev`. Check controlled expected queries, no-match, empty-query,
 malformed/oversized query, pages 1–3 with no duplicates, query-preserving links,
 result navigation to existing `/blog/[slug]`, and an Elasticsearch-down error
 state while `/blog` and a detail page remain usable.
 
-- [ ] **Step 5: Obtain approval for four reversible lifecycle exercises**
+- [x] **Step 5: Obtain approval for four reversible lifecycle exercises**
 
 Using only named generated posts, perform one edit, one slug change, one
 unpublish and one delete in Sanity Studio. After each bounded set, run manual
@@ -877,14 +878,14 @@ existing Next detail-cache behavior separately; do not claim search promotion
 invalidates detail tags. Record owner-attested results without copying content or
 credentials into logs.
 
-- [ ] **Step 6: Demonstrate fail-closed rollback**
+- [x] **Step 6: Demonstrate fail-closed rollback**
 
 With the last good alias active, run an injected/local test failure before alias
 promotion and verify searches still use the prior index. Do not corrupt the live
 lab index to demonstrate failure. Verify a subsequent valid rebuild promotes and
 retains the previous version.
 
-- [ ] **Step 7: Show cleanup dry-run, but do not delete without another approval**
+- [x] **Step 7: Show cleanup dry-run, but do not delete without another approval**
 
 ```bash
 pnpm search:cleanup-content -- --dry-run
@@ -893,7 +894,7 @@ pnpm search:cleanup-content -- --dry-run
 Present eligible, missing and blocked IDs/counts. Leave generated posts in the
 learning dataset unless the owner separately approves the exact apply command.
 
-- [ ] **Step 8: Run final gates and record evidence**
+- [x] **Step 8: Run final gates and record evidence**
 
 ```bash
 pnpm test
@@ -908,7 +909,7 @@ moderate advisories; do not claim inherited findings are fixed. Scan for secrets
 public Elasticsearch exposure, test weakening and unrelated changes. Obtain an
 independent whole-feature review.
 
-- [ ] **Step 9: Commit documentation only after it is accurate**
+- [x] **Step 9: Commit documentation only after it is accurate**
 
 ```bash
 git add docs/learning/sanity-elasticsearch.md docs/superpowers/plans/2026-09-13-sanity-elasticsearch-local.md
@@ -918,6 +919,19 @@ git commit -m "docs: explain Sanity Elasticsearch search"
 
 Present exact commits and evidence. Obtain explicit approval before pushing or
 merging. Do not deploy this local-only experiment to Vercel.
+
+**Task 10 evidence:** The complete bounded acceptance narrative is recorded in
+`docs/learning/sanity-elasticsearch.md` and the ignored Task 10 report. It covers
+the dotted-ID visibility defect and exact approved cleanup, the test-first
+root-level ID correction, the corrected 100-post seed, complete 105-ID sync,
+owner-attested browser checks, all four restored lifecycle outcomes (including
+the separately approved one-document recovery after Studio history failed),
+cache/alias separation, fail-closed rollback, and the non-mutating final cleanup
+dry-run. Final tests, type checking, production build, real loopback integration,
+diff/security/scope scans, and the unchanged seven-high/four-moderate audit
+baseline were recorded before the atomic local commit. Independent acceptance
+review remains enforced by the parent workflow; no push, merge, deployment,
+tunnel, public exposure, or final cleanup apply was performed.
 
 ---
 

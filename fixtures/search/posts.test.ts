@@ -46,7 +46,7 @@ test("builds the exact deterministic 10-topic by 10-angle fixture matrix", () =>
     first.map((post) => post._id),
     Array.from(
       { length: 100 },
-      (_, index) => `searchLab.post.${String(index + 1).padStart(3, "0")}`,
+      (_, index) => `search-lab-post-${String(index + 1).padStart(3, "0")}`,
     ),
   );
 
@@ -126,27 +126,27 @@ test("includes controlled relevance terms in title and body positions", () => {
       .join(" ") ?? "";
 
   assert.match(
-    byId.get("searchLab.post.001")?.title ?? "",
+    byId.get("search-lab-post-001")?.title ?? "",
     /distributed cache/i,
   );
   assert.doesNotMatch(
-    byId.get("searchLab.post.002")?.title ?? "",
+    byId.get("search-lab-post-002")?.title ?? "",
     /distributed cache/i,
   );
-  assert.match(bodyText("searchLab.post.002"), /distributed cache/i);
+  assert.match(bodyText("search-lab-post-002"), /distributed cache/i);
 
-  assert.match(byId.get("searchLab.post.021")?.title ?? "", /content search/i);
+  assert.match(byId.get("search-lab-post-021")?.title ?? "", /content search/i);
   assert.doesNotMatch(
-    byId.get("searchLab.post.022")?.title ?? "",
+    byId.get("search-lab-post-022")?.title ?? "",
     /content search/i,
   );
-  assert.match(bodyText("searchLab.post.022"), /content search/i);
-  assert.match(bodyText("searchLab.post.023"), /indexing indexed indexes/i);
+  assert.match(bodyText("search-lab-post-022"), /content search/i);
+  assert.match(bodyText("search-lab-post-023"), /indexing indexed indexes/i);
 
-  assert.match(byId.get("searchLab.post.024")?.title ?? "", /signal orchard/i);
+  assert.match(byId.get("search-lab-post-024")?.title ?? "", /signal orchard/i);
   assert.doesNotMatch(
-    byId.get("searchLab.post.025")?.title ?? "",
+    byId.get("search-lab-post-025")?.title ?? "",
     /signal orchard/i,
   );
-  assert.match(bodyText("searchLab.post.025"), /signal orchard/i);
+  assert.match(bodyText("search-lab-post-025"), /signal orchard/i);
 });

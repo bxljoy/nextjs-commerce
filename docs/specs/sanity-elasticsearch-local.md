@@ -171,8 +171,11 @@ editing; stop edits during the lab sync and rerun afterward if needed.
   Include controlled examples for exact terms, stemming, title/body emphasis,
   multi-word queries and no-match queries.
 - Use original synthetic text, no real personal data or copied copyrighted posts.
-- Clearly identify sample content in its visible text. Use a unique ID and slug
-  prefix plus a manifest recording ownership and expected content digests.
+- Clearly identify sample content in its visible text. Use root-level IDs
+  `search-lab-post-001` through `search-lab-post-100` and a unique `search-lab-`
+  slug prefix plus a manifest recording ownership and expected content digests.
+  Do not use dotted IDs: Sanity treats them as private document paths that the
+  intentionally unauthenticated storefront cannot read.
 - Verify actual Studio schema constraints before preparing the write payloads.
 - Dry-run is the default. Show target project/dataset, count and collision
   checks without exposing tokens. Require explicit owner approval to publish.

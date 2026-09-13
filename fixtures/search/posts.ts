@@ -228,7 +228,7 @@ export function buildSearchLabPosts(): SanitySeedPost[] {
       const excerpt = `Search Lab sample ${label} explores ${topic.name.toLowerCase()} with a ${angle.name.toLowerCase()} lens and deterministic synthetic examples.`;
 
       return {
-        _id: `searchLab.post.${label}`,
+        _id: `search-lab-post-${label}`,
         _type: "post" as const,
         title: `[Search Lab Sample ${label}] ${subject}`,
         slug: {

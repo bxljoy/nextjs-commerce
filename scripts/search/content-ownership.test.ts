@@ -236,7 +236,7 @@ test("apply rejects a recovery report for another target before mutations", asyn
     JSON.stringify({
       projectId: "another-project",
       dataset: "production",
-      createdIds: ["searchLab.post.001"],
+      createdIds: ["search-lab-post-001"],
     }),
   );
 

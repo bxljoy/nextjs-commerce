@@ -71,7 +71,7 @@ test("blocks changed, unexpected, draft-paired, and referenced documents", () =>
   };
   const referenced = observed(expected[2]!, ["preexisting.author"]);
   const unexpected = observed(fixture(3));
-  unexpected._id = "searchLab.post.999";
+  unexpected._id = "search-lab-post-999";
 
   assert.deepEqual(
     planCleanup(
@@ -93,7 +93,7 @@ test("blocks changed, unexpected, draft-paired, and referenced documents", () =>
           reason: "document has incoming references: preexisting.author",
         },
         {
-          id: "searchLab.post.999",
+          id: "search-lab-post-999",
           reason: "document is not an exact manifest ID",
         },
       ],
@@ -122,10 +122,10 @@ test("a draft pair blocks an otherwise identical published document", () => {
 test("rejects prefix-only, wildcard, duplicate, and noncanonical manifest IDs", () => {
   const valid = fixture(0);
   const invalidIds = [
-    "searchLab.post.",
-    "searchLab.post.*",
-    "searchLab.post.1",
-    "drafts.searchLab.post.001",
+    "search-lab-post-",
+    "search-lab-post-*",
+    "search-lab-post-1",
+    "drafts.search-lab-post-001",
   ];
 
   for (const id of invalidIds) {
@@ -298,7 +298,7 @@ test("apply performs a fresh read and deletes explicit eligible IDs in bounded t
             return this;
           },
           delete(id) {
-            assert.match(id, /^searchLab\.post\.\d{3}$/);
+            assert.match(id, /^search-lab-post-\d{3}$/);
             ids.push(id);
             return this;
           },
