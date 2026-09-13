@@ -189,7 +189,7 @@ git commit -m "chore: add local Elasticsearch search lab"
 - Produces: `SanityPostSource`, `SearchPostDocument`, `SearchHit`, `SearchPage`, `projectPost(post)`, and `POST_INDEX_MAPPING`.
 - Consumes: `toPlainText` from `lib/sanity/utils.ts`.
 
-- [ ] **Step 1: Define the transport contracts**
+- [x] **Step 1: Define the transport contracts**
 
 ```ts
 export type SanityPostSource = {
@@ -225,7 +225,7 @@ export type SearchPage = {
 };
 ```
 
-- [ ] **Step 2: Write failing projection and mapping tests**
+- [x] **Step 2: Write failing projection and mapping tests**
 
 Test Portable Text flattening, optional fields becoming empty strings, invalid
 IDs/titles/slugs/dates failing, and a strict mapping with `keyword`, English
@@ -245,7 +245,7 @@ test("projects only allowlisted searchable fields", () => {
 });
 ```
 
-- [ ] **Step 3: Observe the failures**
+- [x] **Step 3: Observe the failures**
 
 ```bash
 pnpm test:unit -- lib/search/projection.test.ts lib/search/mapping.test.ts
@@ -253,14 +253,14 @@ pnpm test:unit -- lib/search/projection.test.ts lib/search/mapping.test.ts
 
 Expected: fail because the production modules are absent.
 
-- [ ] **Step 4: Implement projection validation and explicit mapping**
+- [x] **Step 4: Implement projection validation and explicit mapping**
 
 `projectPost` must reject non-object values, missing required fields, noncanonical
 slugs and invalid ISO dates. Normalize optional excerpt/body to `""`. The
 mapping must set `dynamic: "strict"`; `title`, `excerpt`, and `bodyText` use the
 `english` analyzer.
 
-- [ ] **Step 5: Run focused and existing tests**
+- [x] **Step 5: Run focused and existing tests**
 
 ```bash
 pnpm test:unit -- lib/search/projection.test.ts lib/search/mapping.test.ts
@@ -268,7 +268,7 @@ pnpm test
 pnpm exec tsc --noEmit
 ```
 
-- [ ] **Step 6: Commit the projection contract**
+- [x] **Step 6: Commit the projection contract**
 
 ```bash
 git add lib/search/contracts.ts lib/search/projection.ts lib/search/projection.test.ts lib/search/mapping.ts lib/search/mapping.test.ts
