@@ -377,7 +377,7 @@ git commit -m "feat: define blog search query semantics"
 - Produces: `requestElasticsearch<T>(request)`, `searchPosts(input, dependencies)`, `SearchUnavailableError`, and configured `searchPublishedPosts(input)`.
 - Consumes: Task 1 configuration and Task 3 query builder.
 
-- [ ] **Step 1: Write failing HTTP adapter tests**
+- [x] **Step 1: Write failing HTTP adapter tests**
 
 Inject `fetch`. Assert URL construction cannot escape the configured origin;
 requests use `cache: "no-store"`, JSON content type and a three-second timeout.
@@ -399,19 +399,19 @@ test("search requests explicitly bypass Next caching", async () => {
 });
 ```
 
-- [ ] **Step 2: Write failing search-service tests**
+- [x] **Step 2: Write failing search-service tests**
 
 Test hit mapping, exact total extraction, score preservation, unavailable errors,
 and rejection of malformed `_source` documents. Elasticsearch responses are
 third-party input and must be validated before rendering.
 
-- [ ] **Step 3: Observe failures**
+- [x] **Step 3: Observe failures**
 
 ```bash
 pnpm test:unit -- lib/search/elasticsearch.test.ts lib/search/service.test.ts
 ```
 
-- [ ] **Step 4: Implement the adapters**
+- [x] **Step 4: Implement the adapters**
 
 `requestElasticsearch` accepts only caller-constructed paths and reads the
 response stream incrementally, cancelling and failing as soon as it exceeds 1
@@ -429,7 +429,7 @@ export async function searchPublishedPosts(
 
 Keep `server-only` out of pure modules imported by the Node test runner.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 pnpm test:unit -- lib/search/elasticsearch.test.ts lib/search/service.test.ts
