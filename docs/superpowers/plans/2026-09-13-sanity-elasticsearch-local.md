@@ -533,7 +533,7 @@ git commit -m "feat: add local blog search page"
 - Produces: `fetchPublishedPostCorpus(client)`, `buildBulkBody(documents)`, `synchronizePostIndex(dependencies)`, and manual `search:sync` behavior.
 - Consumes: Task 1 configuration, Task 2 projection/mapping and Task 4 HTTP adapter.
 
-- [ ] **Step 1: Write failing Sanity source tests**
+- [x] **Step 1: Write failing Sanity source tests**
 
 Assert one complete published-perspective query projects `_id`, title, slug,
 publishedAt, excerpt, body and `_updatedAt`; drafts are not selected. An error or
@@ -556,7 +556,7 @@ export const searchPostCorpusQuery = `
 The script client uses `perspective: "published"` and `useCdn: false`; it does
 not call the existing `unstable_cache` accessors.
 
-- [ ] **Step 2: Write failing lifecycle tests**
+- [x] **Step 2: Write failing lifecycle tests**
 
 Inject HTTP and clock dependencies. Cover:
 
@@ -571,13 +571,13 @@ Inject HTTP and clock dependencies. Cover:
 - nonempty old alias plus empty source refuses promotion unless an explicit
   `allowEmpty` dependency is true.
 
-- [ ] **Step 3: Observe focused failures**
+- [x] **Step 3: Observe focused failures**
 
 ```bash
 pnpm test:unit -- scripts/search/sanity-source.test.ts scripts/search/indexer.test.ts
 ```
 
-- [ ] **Step 4: Implement source, bulk and alias lifecycle**
+- [x] **Step 4: Implement source, bulk and alias lifecycle**
 
 `buildBulkBody` ends every action/source pair with a newline. Batch at most 100
 documents. The alias swap body is one request:
@@ -595,7 +595,7 @@ Use an exclusive `/.search-lab/sync.lock`; report and stop if it exists. Write a
 recovery report containing index names/counts only—never document bodies or
 environment values. `--dry-run` is default; `--apply` performs changes.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 pnpm test:unit -- scripts/search/sanity-source.test.ts scripts/search/indexer.test.ts
