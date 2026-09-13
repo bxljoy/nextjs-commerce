@@ -1,6 +1,7 @@
 import { createClient } from "@sanity/client";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   buildSearchLabPosts,
@@ -11,6 +12,7 @@ import { planSeed } from "./content-ownership.ts";
 const SANITY_API_VERSION = "2024-01-01";
 const EXPECTED_POST_COUNT = 100;
 const CREATE_BATCH_SIZE = 20;
+const MAX_RECOVERY_REPORT_BYTES = 16 * 1024;
 
 const existingSeedCandidatesQuery = `
   *[_id in $ids || (defined(slug.current) && slug.current in $slugs)]{
@@ -44,6 +46,7 @@ type RunSearchSeedDependencies = {
   env?: Record<string, string | undefined>;
   client?: SeedClient;
   log?: (message: string) => void;
+  readRecoveryReport?: () => Promise<readonly string[]>;
   writeRecoveryReport?: (createdIds: readonly string[]) => Promise<void>;
 };
 
@@ -135,6 +138,98 @@ function batches<T>(items: readonly T[], size: number): T[][] {
   return result;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return isRecord(error) && error.code === code;
+}
+
+async function readSeedRecoveryReport(
+  reportPath: string,
+  config: SeedConfig,
+  manifestIds: readonly string[],
+): Promise<string[]> {
+  let text: string;
+  try {
+    text = await readFile(reportPath, "utf8");
+  } catch (error) {
+    if (hasErrorCode(error, "ENOENT")) return [];
+    throw error;
+  }
+
+  if (Buffer.byteLength(text) > MAX_RECOVERY_REPORT_BYTES) {
+    throw new Error("search seed recovery report is too large");
+  }
+
+  let value: unknown;
+  try {
+    value = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("search seed recovery report is malformed");
+  }
+
+  const expectedKeys = ["createdIds", "dataset", "projectId"];
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !== expectedKeys.join(",") ||
+    typeof value.projectId !== "string" ||
+    typeof value.dataset !== "string" ||
+    !Array.isArray(value.createdIds)
+  ) {
+    throw new Error("search seed recovery report is malformed");
+  }
+  if (
+    value.projectId !== config.projectId ||
+    value.dataset !== config.dataset
+  ) {
+    throw new Error("search seed recovery report target does not match");
+  }
+
+  const allowedIds = new Set(manifestIds);
+  const createdIds = value.createdIds;
+  if (
+    createdIds.length > manifestIds.length ||
+    !createdIds.every(
+      (id): id is string => typeof id === "string" && allowedIds.has(id),
+    ) ||
+    new Set(createdIds).size !== createdIds.length
+  ) {
+    throw new Error("search seed recovery report contains invalid IDs");
+  }
+
+  return createdIds;
+}
+
+async function writeSeedRecoveryReport(
+  reportPath: string,
+  config: SeedConfig,
+  createdIds: readonly string[],
+): Promise<void> {
+  const reportDirectory = dirname(reportPath);
+  await mkdir(reportDirectory, { recursive: true, mode: 0o700 });
+  const temporaryPath = `${reportPath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(
+        {
+          projectId: config.projectId,
+          dataset: config.dataset,
+          createdIds,
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx", mode: 0o600 },
+    );
+    await rename(temporaryPath, reportPath);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
+}
+
 export async function runSearchSeed(
   dependencies: RunSearchSeedDependencies = {},
 ): Promise<SeedRunResult> {
@@ -192,24 +287,14 @@ export async function runSearchSeed(
   }
 
   const reportPath = join(cwd, ".search-lab", "seed-recovery.json");
+  const readRecoveryReport =
+    dependencies.readRecoveryReport ??
+    (() => readSeedRecoveryReport(reportPath, config, ids));
   const writeRecoveryReport =
     dependencies.writeRecoveryReport ??
-    (async (createdIds: readonly string[]) => {
-      await mkdir(join(cwd, ".search-lab"), { recursive: true });
-      await writeFile(
-        reportPath,
-        `${JSON.stringify(
-          {
-            projectId: config.projectId,
-            dataset: config.dataset,
-            createdIds,
-          },
-          null,
-          2,
-        )}\n`,
-        { mode: 0o600 },
-      );
-    });
+    ((createdIds: readonly string[]) =>
+      writeSeedRecoveryReport(reportPath, config, createdIds));
+  const recordedIds = new Set(await readRecoveryReport());
 
   const createdIds: string[] = [];
   for (const batch of batches(plan.create, CREATE_BATCH_SIZE)) {
@@ -217,7 +302,8 @@ export async function runSearchSeed(
     for (const post of batch) transaction = transaction.create(post);
     await transaction.commit();
     createdIds.push(...batch.map((post) => post._id));
-    await writeRecoveryReport(createdIds);
+    for (const post of batch) recordedIds.add(post._id);
+    await writeRecoveryReport(ids.filter((id) => recordedIds.has(id)));
   }
 
   log(`Created: ${createdIds.length}`);

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   buildSearchLabPosts,
@@ -214,6 +217,7 @@ test("apply creates only missing posts in transactions of twenty", async () => {
       },
     },
     log: () => {},
+    readRecoveryReport: async () => [],
     writeRecoveryReport: async (createdIds) => {
       reportSizes.push(createdIds.length);
     },
@@ -221,4 +225,110 @@ test("apply creates only missing posts in transactions of twenty", async () => {
 
   assert.deepEqual(batchSizes, [20, 20, 20, 20, 20]);
   assert.deepEqual(reportSizes, [20, 40, 60, 80, 100]);
+});
+
+test("apply rejects a recovery report for another target before mutations", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "search-seed-target-"));
+  const reportDirectory = join(cwd, ".search-lab");
+  await mkdir(reportDirectory);
+  await writeFile(
+    join(reportDirectory, "seed-recovery.json"),
+    JSON.stringify({
+      projectId: "another-project",
+      dataset: "production",
+      createdIds: ["searchLab.post.001"],
+    }),
+  );
+
+  try {
+    await assert.rejects(
+      runSearchSeed({
+        argv: ["--apply", "--confirm-count=100"],
+        cwd,
+        env: {
+          SANITY_PROJECT_ID: "project123",
+          SANITY_DATASET: "production",
+          SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+        },
+        client: {
+          async fetch() {
+            return [];
+          },
+          transaction() {
+            throw new Error("must not create a transaction");
+          },
+        },
+        log: () => {},
+      }),
+      /recovery report target does not match/,
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("a partial-run resume retains every successfully created recovery ID", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "search-seed-resume-"));
+  const expected = buildSearchLabPosts();
+  const persisted: SanitySeedPost[] = [];
+  let failSecondCommit = true;
+  let commitCount = 0;
+
+  const client = {
+    async fetch() {
+      return persisted.map(copy);
+    },
+    transaction() {
+      const posts: SanitySeedPost[] = [];
+      return {
+        create(post: SanitySeedPost) {
+          posts.push(post);
+          return this;
+        },
+        async commit() {
+          commitCount += 1;
+          if (failSecondCommit && commitCount === 2) {
+            throw new Error("simulated second-batch failure");
+          }
+          persisted.push(...posts.map(copy));
+        },
+      };
+    },
+  };
+  const dependencies = {
+    argv: ["--apply", "--confirm-count=100"],
+    cwd,
+    env: {
+      SANITY_PROJECT_ID: "project123",
+      SANITY_DATASET: "production",
+      SANITY_SEARCH_LAB_WRITE_TOKEN: "dedicated-test-token",
+    },
+    client,
+    log: () => {},
+  };
+
+  try {
+    await assert.rejects(
+      runSearchSeed(dependencies),
+      /simulated second-batch failure/,
+    );
+    assert.deepEqual(
+      persisted.map((post) => post._id),
+      expected.slice(0, 20).map((post) => post._id),
+    );
+
+    failSecondCommit = false;
+    commitCount = 0;
+    await runSearchSeed(dependencies);
+
+    const report = JSON.parse(
+      await readFile(join(cwd, ".search-lab", "seed-recovery.json"), "utf8"),
+    ) as { createdIds: string[] };
+    assert.deepEqual(
+      report.createdIds,
+      expected.map((post) => post._id),
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
 });
