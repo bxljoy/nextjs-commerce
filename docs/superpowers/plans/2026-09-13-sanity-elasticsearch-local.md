@@ -773,13 +773,13 @@ git commit -m "feat: guard search-lab content cleanup"
 - Verifies: real Elasticsearch mapping, English analysis, ranking relationships, exact totals, pagination and rebuild deletion behavior.
 - Consumes: Tasks 2–8; writes only uniquely named local test indexes.
 
-- [ ] **Step 1: Define relationship-based expectations**
+- [x] **Step 1: Define relationship-based expectations**
 
 Each case identifies expected included/excluded IDs and relative ordering, not an
 exact floating score. Include title boost, excerpt boost, body-only match,
 English stemming, two-term `and`, no-match and empty-query date ordering.
 
-- [ ] **Step 2: Write the opt-in integration test**
+- [x] **Step 2: Write the opt-in integration test**
 
 Create a unique `commerce-sanity-posts-v<timestamp>` test index, bulk a controlled
 subset, refresh, query through the real adapter, verify page 1/page 2 disjointness,
@@ -789,7 +789,7 @@ and rebuild without one document to prove it disappears after alias swap. In
 Skip with an explicit message unless `ELASTICSEARCH_INTEGRATION=1`; never start
 Docker from inside the test.
 
-- [ ] **Step 3: Observe and tune mapping/query relationships**
+- [x] **Step 3: Observe and tune mapping/query relationships**
 
 ```bash
 docker compose -f compose.search.yaml up -d --wait
@@ -800,7 +800,7 @@ If an expected relationship fails, inspect `_explain` manually and adjust either
 fixture wording or documented boosts. Do not assert implementation-specific
 scores. Record every mapping/query decision in the learning doc later.
 
-- [ ] **Step 4: Run full local gates and commit**
+- [x] **Step 4: Run full local gates and commit**
 
 ```bash
 pnpm test
