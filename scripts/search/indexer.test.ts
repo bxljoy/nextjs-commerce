@@ -370,6 +370,45 @@ test("a promotion failure attempts exact new-index cleanup without a second alia
   );
 });
 
+test("preserves a newly active index when the alias swap applies before its response is lost", async () => {
+  const documents = [document("post-1")];
+  const { http: baseHttp, requests } = successfulHttp(documents);
+  let aliasTarget = OLD_INDEX;
+
+  const result = await synchronizePostIndex({
+    alias: ALIAS,
+    documents,
+    now: () => NOW,
+    http: async (request) => {
+      if (request.path === `/_alias/${ALIAS}`) {
+        requests.push(request);
+        return { [aliasTarget]: { aliases: { [ALIAS]: {} } } };
+      }
+      if (request.path === "/_aliases") {
+        requests.push(request);
+        aliasTarget = NEW_INDEX;
+        throw new Error("promotion response lost");
+      }
+      return baseHttp(request);
+    },
+  });
+
+  assert.deepEqual(result, {
+    oldIndex: OLD_INDEX,
+    newIndex: NEW_INDEX,
+    sourceCount: 1,
+    indexedCount: 1,
+  });
+  assert.equal(
+    requests.filter(({ path }) => path === `/_alias/${ALIAS}`).length,
+    2,
+  );
+  assert.equal(
+    requests.some(({ method }) => method === "DELETE"),
+    false,
+  );
+});
+
 test("refuses to replace a nonempty old index with an empty source unless allowEmpty is true", async () => {
   const refused = successfulHttp([], OLD_INDEX);
   await assert.rejects(

@@ -217,6 +217,7 @@ export async function synchronizePostIndex(
 
   let created = false;
   let indexedCount = 0;
+  let promotionAttempted = false;
   try {
     const createResponse = await http({
       method: "PUT",
@@ -262,6 +263,7 @@ export async function synchronizePostIndex(
     });
     validateCompleteIdSet(idResponse, documents);
 
+    promotionAttempted = true;
     const aliasResponse = await http({
       method: "POST",
       path: "/_aliases",
@@ -289,19 +291,43 @@ export async function synchronizePostIndex(
         sourceCount: documents.length,
         indexedCount,
       };
+      let cleanupIsSafe = !promotionAttempted;
+
+      if (promotionAttempted) {
+        try {
+          const observedTarget = readAliasTarget(
+            await http({
+              method: "GET",
+              path: `/_alias/${alias}`,
+              acceptedStatuses: [404],
+            }),
+            alias,
+          );
+          if (observedTarget === newIndex) {
+            return report;
+          }
+          cleanupIsSafe = observedTarget === oldIndex;
+        } catch {
+          // Retain the new index when promotion state cannot be established.
+          cleanupIsSafe = false;
+        }
+      }
+
       try {
         await dependencies.writeRecoveryReport?.(report);
       } catch {
         // Recovery reporting must not prevent bounded cleanup.
       }
-      try {
-        await http({
-          method: "DELETE",
-          path: `/${newIndex}`,
-          acceptedStatuses: [404],
-        });
-      } catch {
-        // Preserve the original synchronization failure for diagnosis.
+      if (cleanupIsSafe) {
+        try {
+          await http({
+            method: "DELETE",
+            path: `/${newIndex}`,
+            acceptedStatuses: [404],
+          });
+        } catch {
+          // Preserve the original synchronization failure for diagnosis.
+        }
       }
     }
     throw error;
