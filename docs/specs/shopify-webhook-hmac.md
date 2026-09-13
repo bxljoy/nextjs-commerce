@@ -3,8 +3,8 @@
 ## Status
 
 Approved, deployed and Production-verified on `main`. Main local, protected
-Preview and Production acceptance are complete. Stable local and protected
-Preview acceptance are complete; stable-parent merge remains pending.
+Preview and Production acceptance are complete. Stable local, protected Preview,
+stable-parent merge and post-merge signed-delivery verification are complete.
 
 The owner accepts the temporary Shopify cache-revalidation gap created by
 removing the legacy query-string secret from the manually configured webhook

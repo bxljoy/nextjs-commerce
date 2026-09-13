@@ -1,6 +1,6 @@
 # Intent: Authenticate Shopify webhooks with HMAC
 
-**Status:** Deployed and Production-verified on `main`; stable local and protected Preview acceptance complete, stable-parent merge pending.
+**Status:** Deployed and Production-verified on `main`; stable local, protected Preview, stable-parent merge and post-merge verification complete.
 **Date:** 2026-09-12
 **Supersedes:** Query-string authentication for `POST /api/revalidate`
 
@@ -75,11 +75,11 @@ one-argument `revalidateTag(tag)` API.
 
 ### Stable track
 
-The shared verifier and tests are ported byte-for-byte to a feature branch based
-on `learning/next15-stable-caching`, with only the stable one-argument
-invalidation adapter. Local and protected Preview acceptance are complete. Merge
-that work only into the stable branch after explicit approval; do not merge its
-cache API into `main`.
+The shared verifier and tests were ported byte-for-byte through a feature branch
+based on `learning/next15-stable-caching`, with only the stable one-argument
+invalidation adapter. After local and protected Preview acceptance, the owner
+approved a fast-forward merge only into the stable branch. Its cache API was not
+merged into `main`.
 
 ## Preview verification
 
@@ -139,6 +139,15 @@ live Vercel Runtime Logs:
   sessions.
 - All temporary Shopify subscriptions were deleted; the six Production
   subscriptions were left unchanged.
+
+The owner then approved a fast-forward merge of reviewed feature HEAD
+`5dde1af1902eb289dcf4388022c71c9de048babc` only into
+`learning/next15-stable-caching`. The stable branch alias advanced to that commit.
+Two non-destructive genuine Product update deliveries returned HTTP 200 against
+the merged alias; the deliberate invalid-signature probe returned HTTP 401 with
+a generic error. The owner confirmed that no sensitive value appeared. The final
+temporary subscription and bypass were removed, edge rejection was verified,
+and `main` remained unchanged.
 
 No signing secret, HMAC, payload or bypass value was recorded.
 

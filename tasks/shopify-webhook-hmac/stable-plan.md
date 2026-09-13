@@ -487,10 +487,9 @@ commit `579593187a3606352d038446672175aa8ca9ccae`:
   subscriptions remained unchanged, every temporary bypass was revoked, and
   local credential records and clipboard contents were removed.
 
-No secret, HMAC, payload or bypass value is recorded here. Merge and post-merge
-stable verification remain pending.
+No secret, HMAC, payload or bypass value is recorded here.
 
-- [ ] **Step 6: Obtain approval and merge only into the stable parent**
+- [x] **Step 6: Obtain approval and merge only into the stable parent**
 
 Present:
 
@@ -502,9 +501,20 @@ Present:
 
 After explicit approval, merge into `learning/next15-stable-caching`. Do not merge to `main` and do not promote the Preview to Production.
 
-- [ ] **Step 7: Verify the updated stable branch Preview**
+- [x] **Step 7: Verify the updated stable branch Preview**
 
 Confirm the stable branch alias advances to the merged commit and repeats one non-destructive signed webhook delivery. Remove any temporary subscription/bypass created for this final check.
+
+The owner approved a fast-forward merge only into
+`learning/next15-stable-caching`; the branch advanced to reviewed feature HEAD
+`5dde1af1902eb289dcf4388022c71c9de048babc` and its protected alias reached
+Ready. Two genuine non-destructive Product update deliveries returned HTTP 200
+against the merged alias. The deliberate invalid-HMAC probe returned HTTP 401
+with a generic error. The owner confirmed that no sensitive values appeared in
+the entries. The final temporary Product subscription was deleted, its bypass
+was revoked with edge rejection verified, local credential records and clipboard
+contents were removed, and the six Production subscriptions remained unchanged.
+`main` stayed at `342c2431d3dbd94be1dd9de8022c8281e1990956` locally and remotely.
 
 - [ ] **Step 8: Record completion and preserve both branches**
 

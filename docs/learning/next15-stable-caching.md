@@ -203,6 +203,12 @@ two browser sessions. The owner confirmed that Runtime Logs exposed no body,
 HMAC, signing secret or bypass value. All temporary subscriptions and bypasses
 were removed, while the six Production subscriptions were unchanged.
 
+The owner then approved a stable-only fast-forward merge at
+`5dde1af1902eb289dcf4388022c71c9de048babc`. The updated stable branch alias
+received two genuine Product update deliveries with HTTP 200; an invalid HMAC
+probe returned HTTP 401 with a generic error. The final temporary subscription
+and bypass were removed, and `main` remained unchanged.
+
 The stable dependency diff introduces no new advisory relative to `main` and
 removes 12 findings. Eleven transitive findings remain disclosed for separate
 remediation.
@@ -260,11 +266,11 @@ volume or invalidation cost makes that additional contract worthwhile.
 
 ### Would you merge this branch?
 
-Yes, after explicit owner approval. The stable Shopify HMAC implementation has
-passed its local and independent protected Preview gates. The merge belongs only
-on `learning/next15-stable-caching`; `main` and the stable branch remain separate
-maintained implementations. Remaining dependency advisories stay in a separate
-remediation scope.
+Yes. After local and independent protected Preview gates passed, the owner
+approved and the work was merged only into `learning/next15-stable-caching`.
+Post-merge signed-delivery verification also passed. `main` and the stable branch
+remain separate maintained implementations. Remaining dependency advisories stay
+in a separate remediation scope.
 
 ## Official sources
 
