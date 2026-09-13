@@ -56,7 +56,7 @@
 - Produces: `SearchLabConfig`, `readSearchLabConfig(env)`, `assertSafeLabIndexName(name)`, and an Elasticsearch service on `http://127.0.0.1:9200`.
 - Consumes: no application feature code.
 
-- [ ] **Step 1: Write failing configuration tests**
+- [x] **Step 1: Write failing configuration tests**
 
 Cover an exact valid local configuration and rejection of remote hosts, embedded credentials, URL paths/query strings, invalid ports and index names outside `commerce-sanity-posts` / `commerce-sanity-posts-v*`.
 
@@ -88,7 +88,7 @@ test("rejects a remote Elasticsearch endpoint", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and observe the missing-module failure**
+- [x] **Step 2: Run the focused test and observe the missing-module failure**
 
 ```bash
 pnpm test:unit -- scripts/search/config.test.ts
@@ -96,7 +96,7 @@ pnpm test:unit -- scripts/search/config.test.ts
 
 Expected: fail because `scripts/search/config.ts` does not exist.
 
-- [ ] **Step 3: Implement strict environment validation**
+- [x] **Step 3: Implement strict environment validation**
 
 Use a pure function accepting `Record<string, string | undefined>`. Permit only
 `http://127.0.0.1:9200` or `http://localhost:9200`, no credentials/path/query/hash.
@@ -114,7 +114,7 @@ export function readSearchLabConfig(
 ): SearchLabConfig;
 ```
 
-- [ ] **Step 4: Add the pinned local Docker service**
+- [x] **Step 4: Add the pinned local Docker service**
 
 `compose.search.yaml` must use:
 
@@ -149,7 +149,7 @@ Add blank/example `ELASTICSEARCH_URL`, `ELASTICSEARCH_INDEX_ALIAS` and
 `SANITY_SEARCH_LAB_WRITE_TOKEN` entries to `.env.example`. Ignore
 `/.search-lab/`, which will hold only local lock/recovery reports.
 
-- [ ] **Step 5: Verify the runtime without leaving it running**
+- [x] **Step 5: Verify the runtime without leaving it running**
 
 ```bash
 docker compose -f compose.search.yaml config
@@ -164,7 +164,7 @@ pnpm exec tsc --noEmit
 Expected: health check and focused tests pass; the named data volume remains.
 Do not run `down -v` during normal verification.
 
-- [ ] **Step 6: Commit the local boundary**
+- [x] **Step 6: Commit the local boundary**
 
 ```bash
 git add compose.search.yaml .env.example .gitignore scripts/search/config.ts scripts/search/config.test.ts
