@@ -292,7 +292,7 @@ git commit -m "feat: define Sanity search projection"
 - Produces: `SearchInput`, `parseSearchInput(searchParams)`, and `buildPostSearchRequest(input)`.
 - Consumes: page size `10` and maximum page `100` from this task.
 
-- [ ] **Step 1: Write failing boundary tests**
+- [x] **Step 1: Write failing boundary tests**
 
 Cover absent/blank query, trimming, 200-character maximum, repeated values,
 noninteger/negative/zero/over-100 pages, and HTML-like text remaining data rather
@@ -311,7 +311,7 @@ test("rejects repeated query parameters", () => {
 });
 ```
 
-- [ ] **Step 2: Write failing Elasticsearch request tests**
+- [x] **Step 2: Write failing Elasticsearch request tests**
 
 Assert `from`, `size`, `track_total_hits`, source allowlist and deterministic
 sort. For nonempty input assert:
@@ -330,13 +330,13 @@ sort. For nonempty input assert:
 Empty input must use `match_all`, sort by `publishedAt: desc` then `id: asc`;
 nonempty input sorts `_score: desc` then `id: asc`.
 
-- [ ] **Step 3: Observe focused failures**
+- [x] **Step 3: Observe focused failures**
 
 ```bash
 pnpm test:unit -- lib/search/input.test.ts lib/search/query.test.ts
 ```
 
-- [ ] **Step 4: Implement the pure parser and request builder**
+- [x] **Step 4: Implement the pure parser and request builder**
 
 Use a discriminated result so the page can distinguish validation from search
 availability:
@@ -349,7 +349,7 @@ export type ParsedSearchInput =
 
 Never interpolate input into JSON strings; construct typed objects.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```bash
 pnpm test:unit -- lib/search/input.test.ts lib/search/query.test.ts
