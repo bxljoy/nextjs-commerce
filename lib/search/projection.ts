@@ -4,7 +4,8 @@ import type { SearchPostDocument } from "./contracts.ts";
 
 const SANITY_DOCUMENT_ID = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 const CANONICAL_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const CANONICAL_ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const MILLISECOND_UTC_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const WHOLE_SECOND_UTC_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 
 function assertRequiredString(
   post: Record<string, unknown>,
@@ -17,14 +18,21 @@ function assertRequiredString(
   return value;
 }
 
-function assertCanonicalDate(value: string, field: string): void {
+function canonicalDate(value: string, field: string): string {
+  const expectedCanonicalValue = MILLISECOND_UTC_DATE.test(value)
+    ? value
+    : WHOLE_SECOND_UTC_DATE.test(value)
+      ? `${value.slice(0, -1)}.000Z`
+      : undefined;
+  const date = new Date(value);
   if (
-    !CANONICAL_ISO_DATE.test(value) ||
-    Number.isNaN(Date.parse(value)) ||
-    new Date(value).toISOString() !== value
+    expectedCanonicalValue === undefined ||
+    Number.isNaN(date.getTime()) ||
+    date.toISOString() !== expectedCanonicalValue
   ) {
     throw new TypeError(`${field} must be a valid ISO date`);
   }
+  return expectedCanonicalValue;
 }
 
 export function projectPost(post: unknown): SearchPostDocument {
@@ -45,8 +53,8 @@ export function projectPost(post: unknown): SearchPostDocument {
   if (!CANONICAL_SLUG.test(slug)) {
     throw new TypeError("slug must be a canonical path segment");
   }
-  assertCanonicalDate(publishedAt, "publishedAt");
-  assertCanonicalDate(updatedAt, "_updatedAt");
+  const canonicalPublishedAt = canonicalDate(publishedAt, "publishedAt");
+  const canonicalUpdatedAt = canonicalDate(updatedAt, "_updatedAt");
 
   if (source.excerpt != null && typeof source.excerpt !== "string") {
     throw new TypeError("excerpt must be a string when present");
@@ -61,7 +69,7 @@ export function projectPost(post: unknown): SearchPostDocument {
     title,
     excerpt: source.excerpt ?? "",
     bodyText: toPlainText((source.body ?? undefined) as SanityBody | undefined),
-    publishedAt,
-    updatedAt,
+    publishedAt: canonicalPublishedAt,
+    updatedAt: canonicalUpdatedAt,
   };
 }

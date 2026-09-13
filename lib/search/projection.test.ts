@@ -40,6 +40,25 @@ test("projects only allowlisted searchable fields", () => {
   });
 });
 
+test("accepts Sanity whole-second UTC timestamps and normalizes projected dates", () => {
+  assert.deepEqual(
+    projectPost({
+      ...sourcePost,
+      publishedAt: "2026-09-01T00:00:00Z",
+      _updatedAt: "2026-09-02T03:04:05Z",
+    }),
+    {
+      id: "post-1",
+      slug: "cache-boundaries",
+      title: "Cache boundaries",
+      excerpt: "A concise summary",
+      bodyText: "Next and Sanity cache different boundaries.",
+      publishedAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: "2026-09-02T03:04:05.000Z",
+    },
+  );
+});
+
 test("normalizes absent or null optional fields to empty strings", () => {
   const { excerpt: _excerpt, body: _body, ...requiredPost } = sourcePost;
   const expectedProjection = {
@@ -90,7 +109,12 @@ test("rejects missing or invalid required strings", () => {
 
 test("rejects invalid publication and update dates", () => {
   for (const field of ["publishedAt", "_updatedAt"] as const) {
-    for (const value of ["not-a-date", "2026-02-30T00:00:00.000Z", ""]) {
+    for (const value of [
+      "not-a-date",
+      "2026-02-30T00:00:00.000Z",
+      "2026-02-30T00:00:00Z",
+      "",
+    ]) {
       assert.throws(
         () => projectPost({ ...sourcePost, [field]: value }),
         new RegExp(field),
