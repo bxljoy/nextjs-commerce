@@ -40,10 +40,9 @@ test("projects only allowlisted searchable fields", () => {
   });
 });
 
-test("normalizes absent optional fields to empty strings", () => {
+test("normalizes absent or null optional fields to empty strings", () => {
   const { excerpt: _excerpt, body: _body, ...requiredPost } = sourcePost;
-
-  assert.deepEqual(projectPost(requiredPost), {
+  const expectedProjection = {
     id: "post-1",
     slug: "cache-boundaries",
     title: "Cache boundaries",
@@ -51,7 +50,13 @@ test("normalizes absent optional fields to empty strings", () => {
     bodyText: "",
     publishedAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-02T00:00:00.000Z",
-  });
+  };
+
+  assert.deepEqual(projectPost(requiredPost), expectedProjection);
+  assert.deepEqual(
+    projectPost({ ...sourcePost, excerpt: null, body: null }),
+    expectedProjection,
+  );
 });
 
 test("rejects non-object source values", () => {

@@ -48,10 +48,10 @@ export function projectPost(post: unknown): SearchPostDocument {
   assertCanonicalDate(publishedAt, "publishedAt");
   assertCanonicalDate(updatedAt, "_updatedAt");
 
-  if (source.excerpt !== undefined && typeof source.excerpt !== "string") {
+  if (source.excerpt != null && typeof source.excerpt !== "string") {
     throw new TypeError("excerpt must be a string when present");
   }
-  if (source.body !== undefined && !Array.isArray(source.body)) {
+  if (source.body != null && !Array.isArray(source.body)) {
     throw new TypeError("body must be Portable Text when present");
   }
 
@@ -60,7 +60,7 @@ export function projectPost(post: unknown): SearchPostDocument {
     slug,
     title,
     excerpt: source.excerpt ?? "",
-    bodyText: toPlainText(source.body as SanityBody | undefined),
+    bodyText: toPlainText((source.body ?? undefined) as SanityBody | undefined),
     publishedAt,
     updatedAt,
   };

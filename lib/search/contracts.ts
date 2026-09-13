@@ -5,8 +5,8 @@ export type SanityPostSource = {
   title: string;
   slug: string;
   publishedAt: string;
-  excerpt?: string;
-  body?: SanityBody;
+  excerpt?: string | null;
+  body?: SanityBody | null;
   _updatedAt: string;
 };
 
